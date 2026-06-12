@@ -1,6 +1,6 @@
 ---
 name: ghostty-control
-description: Control Ghostty terminal via AppleScript (macOS only). Use when creating terminal workspaces, opening split panes, sending commands to terminals, managing tabs and windows, or any task that involves programmatically interacting with the Ghostty terminal emulator. Triggers on requests like "set up a workspace", "open a terminal for X", "split my terminal", "run this in a new pane", or when the agent needs to interact with the user's terminal environment (e.g., starting dev servers, opening Claude Code sessions, arranging terminal layouts).
+description: Control Ghostty terminal via AppleScript (macOS only). Open tabs and splits, send commands and keystrokes, drive interactive TUIs (neovim, lazygit, REPLs), and read the rendered screen back as text or screenshot. Use when a task needs a real rendered terminal - testing or driving an interactive program, verifying what a TUI displays, or setting up terminal workspaces (tabs, splits, dev servers).
 ---
 
 # Ghostty Control
