@@ -2,9 +2,9 @@
 
 [![skills.sh](https://skills.sh/b/NishantJoshi00/ghostty-control)](https://skills.sh/NishantJoshi00/ghostty-control)
 
-An agent skill for controlling the [Ghostty](https://ghostty.org) terminal via AppleScript — and for testing CLIs and TUIs inside a real terminal. macOS only.
+Browser use, but for terminals. Agents open tabs, run commands, drive TUIs, and read the rendered screen back, as text or as a screenshot. Built on [Ghostty](https://ghostty.org)'s AppleScript API, macOS only.
 
-Think browser automation, but for the terminal: act → wait → perceive → assert. The agent opens a tab, runs commands or drives a TUI, reads the rendered screen back (as text or as a screenshot), and asserts on what it sees.
+The loop is the same one browser agents run: act, wait, perceive, assert. The agent does something in the terminal, waits for the screen to settle or a pattern to render, reads what it sees, and decides what to do next.
 
 ## Install
 
