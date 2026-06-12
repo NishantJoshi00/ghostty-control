@@ -27,10 +27,10 @@ osascript -e 'tell application "Ghostty" to new surface configuration' >/dev/nul
 
 ## What's inside
 
-- **`SKILL.md`** — the AppleScript dictionary in practice: windows, tabs, splits, surface configurations, key/text/mouse input, workspace patterns.
-- **`references/automation.md`** — the testing cheatsheet: verified capture semantics, key-name reference, anti-flake practices, and every caveat we hit while exercising the kit against real programs (neovim, less, python, a ratatui app).
-- **`references/actions.md`** — complete `perform action` string reference.
-- **`scripts/`** — ten standalone zsh tools (no harness assumptions; work for any agent or human):
+- **`SKILL.md`**: the AppleScript dictionary in practice: windows, tabs, splits, surface configurations, key/text/mouse input, workspace patterns.
+- **`references/automation.md`**: the testing cheatsheet: verified capture semantics, key-name reference, anti-flake practices, and every caveat we hit while exercising the kit against real programs (neovim, less, python, a ratatui app).
+- **`references/actions.md`**: complete `perform action` string reference.
+- **`scripts/`**: ten standalone zsh tools (no harness assumptions; work for any agent or human):
 
 | Script | Does |
 |--------|------|
@@ -54,7 +54,7 @@ scripts/gt-close "$id"
 
 ## Provenance
 
-Every command, key name, and caveat in here was verified against a live Ghostty — including a full exercise where an agent wrote, built, and chatted with a ratatui app, editing the source through neovim driven entirely over this kit.
+Every command, key name, and caveat in here was verified against a live Ghostty, including a full exercise where an agent wrote, built, and chatted with a ratatui app, editing the source through neovim driven entirely over this kit.
 
 ## License
 
