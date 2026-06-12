@@ -1,5 +1,7 @@
 # ghostty-control
 
+[![skills.sh](https://skills.sh/b/NishantJoshi00/ghostty-control)](https://skills.sh/NishantJoshi00/ghostty-control)
+
 An agent skill for controlling the [Ghostty](https://ghostty.org) terminal via AppleScript — and for testing CLIs and TUIs inside a real terminal. macOS only.
 
 Think browser automation, but for the terminal: act → wait → perceive → assert. The agent opens a tab, runs commands or drives a TUI, reads the rendered screen back (as text or as a screenshot), and asserts on what it sees.
