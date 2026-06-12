@@ -15,7 +15,7 @@ npx skills add NishantJoshi00/ghostty-control
 ## Requirements
 
 - macOS
-- A recent Ghostty **tip/nightly** build (the AppleScript scripting API is a preview feature, not in v1.2.x stable)
+- Ghostty **1.3.0 or later** (the AppleScript scripting API shipped in 1.3 as a preview feature; expect changes in 1.4)
 - Accessibility + Screen Recording permissions for screenshots (`gt-shot`)
 
 Verify scripting is available:
@@ -28,7 +28,7 @@ osascript -e 'tell application "Ghostty" to new surface configuration' >/dev/nul
 ## What's inside
 
 - **`SKILL.md`**: the AppleScript dictionary in practice: windows, tabs, splits, surface configurations, key/text/mouse input, workspace patterns.
-- **`references/automation.md`**: the testing cheatsheet: verified capture semantics, key-name reference, anti-flake practices, and every caveat we hit while exercising the kit against real programs (neovim, less, python, a ratatui app).
+- **`references/automation.md`**: the testing cheatsheet: verified capture semantics, key-name reference, anti-flake practices, and every caveat we hit while exercising the kit against real programs (neovim, less, python).
 - **`references/actions.md`**: complete `perform action` string reference.
 - **`scripts/`**: ten standalone zsh tools (no harness assumptions; work for any agent or human):
 
@@ -54,7 +54,7 @@ scripts/gt-close "$id"
 
 ## Provenance
 
-Every command, key name, and caveat in here was verified against a live Ghostty, including a full exercise where an agent wrote, built, and chatted with a ratatui app, editing the source through neovim driven entirely over this kit.
+Every command, key name, and caveat in here was verified against a live Ghostty.
 
 ## License
 

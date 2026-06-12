@@ -9,7 +9,7 @@ Control Ghostty terminal windows, tabs, splits, and terminals via `osascript` on
 
 **Platform: macOS only.** This skill drives Ghostty through AppleScript via `osascript`, which exists only on macOS. There is no Linux equivalent. Bail out early on any non-Darwin host.
 
-**Requires:** A recent Ghostty **tip/nightly** build. The scripting API is a **preview** feature: it is not in the v1.2.x stable line (nor in early tip checkouts), and it may change without notice. On these builds `get version` returns a git hash, not a semver, so do **not** gate on a version number.
+**Requires:** Ghostty **1.3.0 or later**. The scripting API is a **preview** feature: it shipped in 1.3.0 and the Ghostty team expects breaking changes in 1.4. Tip/nightly builds report `get version` as a git hash rather than a semver, so do **not** gate on a version number — feature-probe instead.
 
 **Verify scripting is available** (feature-probe, not version-compare):
 

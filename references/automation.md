@@ -137,7 +137,7 @@ gt-screen "$id"
 gt-send "$id" --key q && gt-close "$id"
 ```
 
-Hard-won caveats from a full live exercise (writing and running a ratatui app through neovim):
+Hard-won caveats from live exercises driving real programs through this kit:
 
 - **`send key` silently never arrives at kitty-keyboard-protocol apps (neovim 0.12+).** No error, no effect — keys work fine in zsh, less, python, then vanish in nvim. The fix is raw input: `perform action "text:..."` (Zig string syntax, `\r` enter, `\x1b` escape), packaged as `gt-send --raw`. Drive nvim entirely with it: `--raw ':%d\r'`, `--raw 'i'`, paste the body, `--raw '\x1b'`, `--raw ':wq\r'`. Likely a Ghostty preview-API bug worth reporting upstream.
 - **`gt-shot` photographs the visible tab, not your target.** Pass the terminal id (`gt-shot <id> out.png`) and it selects the target's tab, shoots, and restores the user's selection (~0.7s of visible tab-flicker).
