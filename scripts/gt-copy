@@ -1,0 +1,27 @@
+#!/bin/zsh
+# gt-copy <id>
+# Copies the terminal's current selection to the clipboard, prints it on stdout,
+# then restores the user's clipboard. Empty output = no selection.
+set -euo pipefail
+
+TID="${1:-}"
+[[ -n "$TID" ]] || { echo "usage: gt-copy <id>" >&2; exit 2; }
+
+OLD_CLIP=$(pbpaste 2>/dev/null || true)
+pbcopy < /dev/null
+
+osascript - "$TID" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        perform action "copy_to_clipboard" on (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+
+for i in {1..20}; do
+  SEL=$(pbpaste 2>/dev/null || true)
+  [[ -n "$SEL" ]] && break
+  sleep 0.05
+done
+printf '%s\n' "${SEL:-}"
+printf '%s' "$OLD_CLIP" | pbcopy

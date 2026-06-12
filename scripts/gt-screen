@@ -1,0 +1,44 @@
+#!/bin/zsh
+# gt-screen <id> [--scrollback]
+# Prints the terminal's rendered screen (or full scrollback) as text on stdout.
+# Saves and restores the user's clipboard.
+set -euo pipefail
+
+TID="" ACTION="write_screen_file:copy"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --scrollback) ACTION="write_scrollback_file:copy"; shift ;;
+    -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+    *) TID="$1"; shift ;;
+  esac
+done
+[[ -n "$TID" ]] || { echo "usage: gt-screen <id> [--scrollback]" >&2; exit 2; }
+
+OLD_CLIP=$(pbpaste 2>/dev/null || true)
+pbcopy < /dev/null    # clear, so we can poll for arrival
+
+osascript - "$TID" "$ACTION" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        perform action (item 2 of argv) on (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+
+# poll clipboard until the temp-file path lands (write_*_file:copy puts a PATH there)
+PATH_ON_CLIP=""
+for i in {1..40}; do
+  PATH_ON_CLIP=$(pbpaste 2>/dev/null || true)
+  [[ -n "$PATH_ON_CLIP" ]] && break
+  sleep 0.05
+done
+
+STATUS=0
+if [[ -f "$PATH_ON_CLIP" ]]; then
+  cat "$PATH_ON_CLIP"
+else
+  echo "gt-screen: capture failed (clipboard: '$PATH_ON_CLIP')" >&2
+  STATUS=1
+fi
+printf '%s' "$OLD_CLIP" | pbcopy
+exit $STATUS

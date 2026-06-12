@@ -1,0 +1,71 @@
+#!/bin/zsh
+# gt-mouse <id> click <x> <y> [--button left|right|middle] [--mods control,...]
+# gt-mouse <id> move <x> <y>
+# gt-mouse <id> scroll <dy> [dx]
+# Coordinates are pixels, origin top-left of the terminal surface.
+set -euo pipefail
+
+TID="${1:-}"; VERB="${2:-}"; shift 2 || true
+[[ -n "$TID" && -n "$VERB" ]] || { sed -n '2,5p' "$0" >&2; exit 2; }
+
+case "$VERB" in
+  click)
+    X="$1"; Y="$2"; shift 2
+    BUTTON="left button" MODS=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --button) BUTTON="$2 button"; shift 2 ;;
+        --mods)   MODS="$2"; shift 2 ;;
+        *) echo "gt-mouse: unknown arg '$1'" >&2; exit 2 ;;
+      esac
+    done
+    osascript - "$TID" "$X" "$Y" "$BUTTON" "$MODS" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        set t to terminal id (item 1 of argv)
+        set bx to item 2 of argv as real
+        set by to item 3 of argv as real
+        send mouse position x bx y by to t
+        delay 0.05
+        if item 4 of argv is "right button" then
+            set b to right button
+        else if item 4 of argv is "middle button" then
+            set b to middle button
+        else
+            set b to left button
+        end if
+        if item 5 of argv is "" then
+            send mouse button b action press to t
+            delay 0.05
+            send mouse button b action release to t
+        else
+            send mouse button b action press modifiers (item 5 of argv) to t
+            delay 0.05
+            send mouse button b action release modifiers (item 5 of argv) to t
+        end if
+    end tell
+end run
+EOF
+    ;;
+  move)
+    X="$1"; Y="$2"
+    osascript - "$TID" "$X" "$Y" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        send mouse position x ((item 2 of argv) as real) y ((item 3 of argv) as real) to (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+    ;;
+  scroll)
+    DY="$1"; DX="${2:-0}"
+    osascript - "$TID" "$DY" "$DX" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        send mouse scroll x ((item 3 of argv) as real) y ((item 2 of argv) as real) to (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+    ;;
+  *) echo "gt-mouse: unknown verb '$VERB' (click|move|scroll)" >&2; exit 2 ;;
+esac

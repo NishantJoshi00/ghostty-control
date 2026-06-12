@@ -1,0 +1,75 @@
+#!/bin/zsh
+# gt-shot [id] [out.png]
+# Captures a Ghostty terminal window as a PNG, prints the file path.
+# Without id: the frontmost Ghostty window, whatever tab the user has selected.
+# With id: briefly selects that terminal's tab, shoots, restores the user's tab.
+# Needs Accessibility + Screen Recording permissions; window must be on screen.
+set -euo pipefail
+
+TID="" OUT=""
+for a in "$@"; do
+  if [[ "$a" == *.png ]]; then OUT="$a"; else TID="$a"; fi
+done
+[[ -n "$OUT" ]] || OUT="$(mktemp -t gt-shot).png"
+
+if [[ -n "$TID" ]]; then
+  # select target tab, remembering the user's current selection
+  PREV=$(osascript - "$TID" <<'EOF'
+on run argv
+    tell application "Ghostty"
+        set target to terminal id (item 1 of argv)
+        repeat with w in windows
+            repeat with tb in tabs of w
+                repeat with t in terminals of tb
+                    if id of t is (item 1 of argv) then
+                        set prevTab to id of selected tab of w
+                        select tab tb
+                        delay 0.3
+                        return prevTab
+                    end if
+                end repeat
+            end repeat
+        end repeat
+        return ""
+    end tell
+end run
+EOF
+)
+fi
+
+BOUNDS=$(osascript <<'EOF'
+tell application "System Events" to tell process "Ghostty"
+    set w to first window whose subrole is "AXStandardWindow"
+    set {x, y} to position of w
+    set {wd, ht} to size of w
+    return (x as text) & "," & (y as text) & "," & (wd as text) & "," & (ht as text)
+end tell
+EOF
+)
+STATUS=0
+if [[ "$BOUNDS" =~ ^-?[0-9]+,-?[0-9]+,[0-9]+,[0-9]+$ ]]; then
+  screencapture -x -R"$BOUNDS" "$OUT"
+  [[ -s "$OUT" ]] && echo "$OUT" || { echo "gt-shot: screencapture produced nothing — Screen Recording permission?" >&2; STATUS=1; }
+else
+  echo "gt-shot: could not get window bounds ('$BOUNDS') — Accessibility permission?" >&2
+  STATUS=1
+fi
+
+# restore the user's tab selection
+if [[ -n "${PREV:-}" ]]; then
+  osascript - "$PREV" <<'EOF' >/dev/null 2>&1
+on run argv
+    tell application "Ghostty"
+        repeat with w in windows
+            repeat with tb in tabs of w
+                if id of tb is (item 1 of argv) then
+                    select tab tb
+                    return
+                end if
+            end repeat
+        end repeat
+    end tell
+end run
+EOF
+fi
+exit $STATUS

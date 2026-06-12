@@ -1,0 +1,27 @@
+#!/bin/zsh
+# gt-paste <id> [text]
+# With text: puts it on the clipboard, sends a real paste event to the terminal,
+# restores the user's clipboard. Without text: pastes the current clipboard.
+set -euo pipefail
+
+TID="${1:-}"
+[[ -n "$TID" ]] || { echo "usage: gt-paste <id> [text]" >&2; exit 2; }
+TEXT="${2-__GT_NO_TEXT__}"
+
+if [[ "$TEXT" != "__GT_NO_TEXT__" ]]; then
+  OLD_CLIP=$(pbpaste 2>/dev/null || true)
+  printf '%s' "$TEXT" | pbcopy
+fi
+
+osascript - "$TID" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        perform action "paste_from_clipboard" on (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+
+if [[ "$TEXT" != "__GT_NO_TEXT__" ]]; then
+  sleep 0.8   # paste is async; restoring the clipboard too early pastes the OLD contents
+  printf '%s' "$OLD_CLIP" | pbcopy
+fi

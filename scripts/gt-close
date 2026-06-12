@@ -1,0 +1,77 @@
+#!/bin/zsh
+# gt-close <id> [--force]
+# Closes the terminal with the given id without tripping Ghostty's
+# "process is running" confirmation dialog (which stalls autonomous flows).
+# Default: interrupt the foreground process (ctrl+c), then `exit` the shell --
+# the surface closes itself, no dialog. If the terminal survives (e.g. a TUI
+# that ignores ctrl+c), falls back to AppleScript close and auto-confirms the
+# sheet if one appears. --force skips the graceful phase.
+set -euo pipefail
+
+TID="${1:-}"; FORCE="${2:-}"
+[[ -n "$TID" ]] || { echo "usage: gt-close <id> [--force]" >&2; exit 2; }
+
+exists() {
+  osascript - "$TID" <<'EOF' 2>/dev/null
+on run argv
+    tell application "Ghostty"
+        try
+            get id of (terminal id (item 1 of argv))
+            return "yes"
+        on error
+            return "no"
+        end try
+    end tell
+end run
+EOF
+}
+
+if [[ "$(exists)" == "no" ]]; then
+  echo "gt-close: no terminal with id $TID (already closed?)"
+  exit 0
+fi
+
+if [[ "$FORCE" != "--force" ]]; then
+  # graceful: interrupt foreground process, then exit the shell
+  osascript - "$TID" <<'EOF' >/dev/null 2>&1
+on run argv
+    tell application "Ghostty"
+        set t to terminal id (item 1 of argv)
+        send key "c" modifiers "control" to t
+        delay 0.3
+        input text "exit" to t
+        delay 0.1
+        send key "enter" to t
+    end tell
+end run
+EOF
+  for i in {1..10}; do
+    [[ "$(exists)" == "no" ]] && { echo "closed $TID (graceful)"; exit 0; }
+    sleep 0.3
+  done
+fi
+
+# force path: AppleScript close, then auto-confirm the sheet if Ghostty raises one
+osascript - "$TID" <<'EOF' >/dev/null 2>&1
+on run argv
+    tell application "Ghostty"
+        try
+            close (terminal id (item 1 of argv))
+        end try
+    end tell
+    delay 0.4
+    tell application "System Events" to tell process "Ghostty"
+        try
+            set s to sheet 1 of (first window whose subrole is "AXStandardWindow")
+            click (first button of s whose name is "Close")
+        end try
+    end tell
+end run
+EOF
+sleep 0.3
+if [[ "$(exists)" == "no" ]]; then
+  echo "closed $TID (forced)"
+else
+  echo "gt-close: terminal $TID still open -- a dialog may need manual attention" >&2
+  exit 1
+fi

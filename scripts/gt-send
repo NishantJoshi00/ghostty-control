@@ -1,0 +1,74 @@
+#!/bin/zsh
+# gt-send <id> [--key SPEC]... [--text STR]... [--enter]
+# Sends input to a terminal, in argument order.
+#   --key SPEC   one keystroke: "enter", "arrowDown", "c,control", "tab,control,shift"
+#                Key names are camelCase Ghostty Input.Key values: a-z, digit0-9,
+#                enter, escape, backspace, delete, tab, space, home, end, insert,
+#                pageUp, pageDown, arrowUp/Down/Left/Right, f1-f24, comma, period,
+#                slash, backslash, semicolon, quote, backquote, minus, equal,
+#                bracketLeft, bracketRight, numpad0-9, numpadEnter...
+#                No uppercase letters -- shifted printable chars go via --text "G".
+#   --text STR   string input (paste-style / bracketed). Embedded newlines do NOT
+#                execute -- they stack lines in the buffer. Follow with --enter to
+#                run the whole block: --text $'l1\nl2' --enter
+#   --stdin      like --text but reads the block from stdin (for files/big blocks):
+#                cat snippet.py | gt-send <id> --stdin --enter
+#   --raw STR    raw input via `perform action "text:..."` (Zig string syntax:
+#                \r enter, \x1b escape). NO paste wrapping, NO key synthesis.
+#                USE THIS for kitty-keyboard-protocol apps (neovim!) where
+#                --key silently never arrives: gt-send <id> --raw ':wq\r'
+#   --enter      shorthand for --key enter
+set -euo pipefail
+
+TID="${1:-}"; shift || true
+[[ -n "$TID" ]] || { echo "usage: gt-send <id> [--key SPEC|--text STR|--enter]..." >&2; exit 2; }
+
+send_key() {  # $1 = spec like "c,control,shift"
+  local key="${1%%,*}" mods=""
+  [[ "$1" == *,* ]] && mods="${1#*,}"
+  osascript - "$TID" "$key" "$mods" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        set t to terminal id (item 1 of argv)
+        if item 3 of argv is "" then
+            send key (item 2 of argv) to t
+        else
+            send key (item 2 of argv) modifiers (item 3 of argv) to t
+        end if
+    end tell
+end run
+EOF
+}
+
+send_text() {  # $1 = text
+  osascript - "$TID" "$1" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        input text (item 2 of argv) to (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+}
+
+send_raw() {  # $1 = Zig-syntax string for the text: action
+  osascript - "$TID" "text:$1" <<'EOF' >/dev/null
+on run argv
+    tell application "Ghostty"
+        perform action (item 2 of argv) on (terminal id (item 1 of argv))
+    end tell
+end run
+EOF
+}
+
+[[ $# -gt 0 ]] || { echo "gt-send: nothing to send" >&2; exit 2; }
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --key)   send_key "$2"; shift 2 ;;
+    --text)  send_text "$2"; shift 2 ;;
+    --stdin) send_text "$(cat)"; shift ;;
+    --raw)   send_raw "$2"; shift 2 ;;
+    --enter) send_key "enter"; shift ;;
+    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    *) echo "gt-send: unknown arg '$1'" >&2; exit 2 ;;
+  esac
+done
