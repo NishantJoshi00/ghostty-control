@@ -135,6 +135,10 @@ send key "enter" to term
 (The `gt-send`/`gt-run` scripts handle this for you: a trailing newline in `--text`/`--stdin`
 is converted to a real Enter, so `gt-send <id> --text $'ls -la\n'` runs the command.)
 
+**Caution on prompt bars (Claude Code, REPLs): a `\n` is not an Enter.** A multiline
+input takes a pasted newline as a literal newline, not a submit. Do not assume `\n`
+behaves like Enter — to submit, send a real Enter key (`send key "enter"`).
+
 ### Send key
 
 ```applescript

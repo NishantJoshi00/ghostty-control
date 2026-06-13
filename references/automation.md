@@ -151,6 +151,7 @@ Hard-won caveats from live exercises driving real programs through this kit:
 - **`gt-shot` photographs the visible tab, not your target.** Pass the terminal id (`gt-shot <id> out.png`) and it selects the target's tab, shoots, and restores the user's selection (~0.7s of visible tab-flicker).
 - **Stale nvim swap files block startup with a dialog** that eats your first keystrokes' meaning. Launch with `-n` (and `--clean`) when driving nvim under automation; clear `~/.local/state/nvim/swap/` if a prior session got killed.
 - **Infer state from the screen, not from your last action.** Every wrong turn in the exercise came from assuming a keystroke landed. Capture (`gt-screen`/`gt-shot <id>`) after each state-changing step before sending the next.
+- **On a prompt bar, a `\n` is not an Enter.** Multiline composers (Claude Code, REPLs) take a pasted newline as a literal newline, not a submit. Don't assume `\n` will behave like Enter — submit with a real Enter key (`send key "enter"`).
 
 Input semantics learned the hard way:
 
