@@ -53,6 +53,8 @@ screencapture -x -R"x,y,w,h" /tmp/shot.png
 
 Window must be on screen and unobscured. Text capture has no such constraint — prefer text unless you need colors, layout, or rendering itself.
 
+**Escalation rule:** if `gt-screen` output is ambiguous or unreadable — TUI mid-transition, complex box-drawing layout, overlapping panels, or you cannot confidently answer "what is the TUI showing right now?" — reach for `gt-shot <id> out.png` before acting. Use what you see in the image, not what you expected to see.
+
 ### Manage
 
 ```applescript
@@ -97,7 +99,8 @@ Everything else: [actions.md](actions.md).
 9. **Guarded teardown.** Before `close tab`, verify its name still starts with your test prefix. If it doesn't, you're about to close someone's real work — abort and report instead.
 10. **Collect, then close.** Closing a tab while iterating `repeat with tb in tabs` invalidates the indices mid-loop. Gather references into a list first, then close them in a second pass.
 11. **On failure, keep the evidence.** Save the last captured screen (text or PNG) before teardown; it's the TUI equivalent of a failure screenshot.
-12. **Don't rely on terminal-set titles or `working directory` for discovery.** OSC title injection from inside a shell did not propagate to the AppleScript `name` property in testing, and `working directory` only reflects the config-set initial directory. The id you captured at creation is the only reliable handle.
+12. **If `gt-screen` is ambiguous, escalate to `gt-shot` before the next action.** Text strips color and collapses box-drawing; a TUI mid-transition or with overlapping elements can be unreadable. If you cannot determine state from text, take a screenshot first — then act on what you see, not on what you expected.
+13. **Don't rely on terminal-set titles or `working directory` for discovery.** OSC title injection from inside a shell did not propagate to the AppleScript `name` property in testing, and `working directory` only reflects the config-set initial directory. The id you captured at creation is the only reliable handle.
 
 The caller can be anything — Claude Code, another agent, a human, CI. Nothing here assumes a harness; it's plain zsh + `osascript`. Version detection without AppleScript: `$TERM_PROGRAM` is `ghostty` and `$TERM_PROGRAM_VERSION` carries a real semver (e.g. `1.3.2-main+e8fb7eaba`) in any shell Ghostty spawned.
 
