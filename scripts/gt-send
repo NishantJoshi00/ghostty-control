@@ -8,11 +8,15 @@
 #                slash, backslash, semicolon, quote, backquote, minus, equal,
 #                bracketLeft, bracketRight, numpad0-9, numpadEnter...
 #                No uppercase letters -- shifted printable chars go via --text "G".
-#   --text STR   string input (paste-style / bracketed). Embedded newlines do NOT
-#                execute -- they stack lines in the buffer. Follow with --enter to
-#                run the whole block: --text $'l1\nl2' --enter
-#   --stdin      like --text but reads the block from stdin (for files/big blocks):
-#                cat snippet.py | gt-send <id> --stdin --enter
+#   --text STR   string input (paste-style / bracketed). Interior newlines do NOT
+#                execute -- they stack lines in the buffer. A TRAILING newline is
+#                sent as a real Enter key, so --text $'cmd\n' runs cmd, and
+#                --text $'l1\nl2\n' pastes both lines then runs the block.
+#                (Bracketed paste swallows a pasted trailing newline -- only a real
+#                key event submits -- so this is what makes "type and run" work.)
+#   --stdin      like --text but reads the block from stdin (for files/big blocks).
+#                A file's trailing newline submits, so no --enter needed:
+#                cat snippet.py | gt-send <id> --stdin
 #   --raw STR    raw input via `perform action "text:..."` (Zig string syntax:
 #                \r enter, \x1b escape). NO paste wrapping, NO key synthesis.
 #                USE THIS for kitty-keyboard-protocol apps (neovim!) where
@@ -40,7 +44,7 @@ end run
 EOF
 }
 
-send_text() {  # $1 = text
+send_text() {  # $1 = text (raw bracketed paste, no key synthesis)
   osascript - "$TID" "$1" <<'EOF' >/dev/null
 on run argv
     tell application "Ghostty"
@@ -48,6 +52,17 @@ on run argv
     end tell
 end run
 EOF
+}
+
+send_text_submit() {  # $1 = text; paste it, but a trailing newline becomes a real Enter
+  local t="$1"
+  if [[ "$t" == *$'\n' ]]; then
+    t="${t%$'\n'}"               # drop exactly one trailing newline
+    [[ -n "$t" ]] && send_text "$t"
+    send_key "enter"             # real key event -- bracketed paste would not submit
+  else
+    send_text "$t"
+  fi
 }
 
 send_raw() {  # $1 = Zig-syntax string for the text: action
@@ -64,8 +79,8 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --key)   send_key "$2"; shift 2 ;;
-    --text)  send_text "$2"; shift 2 ;;
-    --stdin) send_text "$(cat)"; shift ;;
+    --text)  send_text_submit "$2"; shift 2 ;;
+    --stdin) IFS= read -rd '' _stdin || true; send_text_submit "$_stdin"; shift ;;
     --raw)   send_raw "$2"; shift 2 ;;
     --enter) send_key "enter"; shift ;;
     -h|--help) sed -n '2,7p' "$0"; exit 0 ;;

@@ -17,11 +17,15 @@ Scripts in [`../scripts/`](../scripts/) package each step (see [Scripts](#script
 ### Act
 
 ```applescript
-input text "npm test\n" to term              -- typed strings; \n is Enter. PASTE-style.
+input text "npm test" to term                -- bracketed PASTE; a pasted \n does NOT submit
+send key "enter" to term                     -- real Enter submits the pasted line
 send key "down" to term                      -- single keystroke, real key event
-send key "enter" to term
 send key "c" modifiers "control" to term     -- modifiers = comma-separated STRING
 ```
+
+Raw `input text` is paste, not typing: append `send key "enter"` to run the line. The
+`gt-send`/`gt-run` scripts fold this in -- a trailing newline in `--text`/`--stdin` is sent
+as a real Enter, so `gt-send <id> --text $'npm test\n'` runs the command.
 
 Key names are camelCase `Ghostty.Input.Key` raw values (verified against source and live):
 `a`-`z`, `digit0`-`digit9`, `enter`, `escape`, `backspace`, `delete`, `tab`, `space`, `home`, `end`, `insert`, `pageUp`, `pageDown`, `arrowUp`, `arrowDown`, `arrowLeft`, `arrowRight`, `f1`-`f24`, `comma`, `period`, `slash`, `backslash`, `semicolon`, `quote`, `backquote`, `minus`, `equal`, `bracketLeft`, `bracketRight`, `numpad0`-`numpad9`, `numpadEnter`. Wrong forms that look right: `up`, `down`, `esc`, `return`, `arrow_down`, `G` — all rejected. No uppercase letters; shifted printables go via `input text`.
@@ -88,7 +92,8 @@ Everything else: [actions.md](actions.md).
        set t to focused terminal of tb
        perform action "set_tab_title:test: build" on t
        delay 2
-       input text "make test\n" to t
+       input text "make test" to t
+       send key "enter" to t
    end tell
    ```
 4. **Target by stable id, not focus.** `terminal id "UUID"` keeps working when the TUI retitles the tab or focus drifts. Capture the id at open time; pass it everywhere.
@@ -150,5 +155,5 @@ Hard-won caveats from live exercises driving real programs through this kit:
 Input semantics learned the hard way:
 
 - **Key names are lowercase.** `--key G` errors; shifted printable chars go via `--text "G"`. Ctrl chords (`--key u,control`) work and are verified functionally.
-- **`input text` is bracketed paste: embedded newlines do not execute.** They stack lines in the buffer; one `--enter` then runs the whole block. This is what makes multi-line REPL input work — an indented python `def` pastes correctly: `cat snippet.py | gt-send <id> --stdin --enter`.
+- **`input text` is bracketed paste: a pasted newline does not submit.** Interior newlines stack lines in the buffer; submitting needs a real Enter key. The scripts fold this in: a trailing newline in `gt-send --text`/`--stdin` is converted to a real Enter, so `gt-send <id> --text $'cmd\n'` runs `cmd`, and `cat snippet.py | gt-send <id> --stdin` pastes the indented python `def` then runs it (no `--enter` needed). Raw AppleScript `input text` does not do this: paste, then `send key "enter"` yourself.
 - **Paste is async.** Restoring the clipboard too early pastes the old contents (gt-paste holds 0.8s before restoring).

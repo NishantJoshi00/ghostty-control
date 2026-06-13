@@ -35,7 +35,8 @@ tell application "Ghostty"
     set tb to new tab in front window with configuration (new surface configuration)
     set t to focused terminal of tb
     perform action "set_tab_title:test: <what this runs>" on t   -- name it FIRST
-    input text "npm test\n" to t                                 -- then run
+    input text "npm test" to t                                   -- then run
+    send key "enter" to t                                        -- real Enter submits
 end tell
 ```
 
@@ -61,7 +62,7 @@ tell application "Ghostty"
     set font size of conf to 14
     set initial working directory of conf to "/path/to/project"
     set command of conf to "/bin/zsh"
-    set initial input of conf to "echo hello\n"
+    set initial input of conf to "echo hello\n"  -- fed at startup, so here \n DOES run it
     set wait after command of conf to true
     set environment variables of conf to {"FOO=bar", "BAZ=qux"}
 end tell
@@ -117,15 +118,22 @@ After splitting, the new pane is focused.
 ```applescript
 tell application "Ghostty"
     set term to focused terminal of selected tab of front window
-    input text "ls -la\n" to term
+    input text "ls -la" to term
+    send key "enter" to term
 end tell
 ```
 
-`\n` sends Enter. This is paste-style input. Chain commands in one call:
+`input text` is bracketed paste, **not typing**: a trailing `\n` does **not** run the
+command, it just stacks a blank line in the buffer. To submit, send a real Enter key
+event (`send key "enter"`), as above. Chain commands with `&&` in one paste, then one Enter:
 
 ```applescript
-input text "cd ~/project && npm install && npm run dev\n" to term
+input text "cd ~/project && npm install && npm run dev" to term
+send key "enter" to term
 ```
+
+(The `gt-send`/`gt-run` scripts handle this for you: a trailing newline in `--text`/`--stdin`
+is converted to a real Enter, so `gt-send <id> --text $'ls -la\n'` runs the command.)
 
 ### Send key
 
@@ -206,7 +214,8 @@ perform action "toggle_window_float_on_top" on term
 ```applescript
 tell application "Ghostty"
     repeat with t in (terminals of front window)
-        input text "echo hello\n" to t
+        input text "echo hello" to t
+        send key "enter" to t
     end repeat
 end tell
 ```
@@ -230,12 +239,14 @@ tell application "Ghostty"
     split term direction right with configuration conf2
 
     set term2 to focused terminal of selected tab of front window
-    input text "npm run dev\n" to term2
+    input text "npm run dev" to term2
+    send key "enter" to term2
 
     -- Back to left pane, start Claude Code
     perform action "goto_split:left" on term2
     set term1 to focused terminal of selected tab of front window
-    input text "claude\n" to term1
+    input text "claude" to term1
+    send key "enter" to term1
 end tell
 ```
 
@@ -249,7 +260,8 @@ tell application "Ghostty"
     new window with configuration conf
     set term to focused terminal of selected tab of front window
     perform action "set_tab_title:frontend" on term
-    input text "npm run dev\n" to term
+    input text "npm run dev" to term
+    send key "enter" to term
 
     -- Tab 2: backend
     set conf2 to new surface configuration
@@ -257,7 +269,8 @@ tell application "Ghostty"
     new tab in front window with configuration conf2
     set term2 to focused terminal of selected tab of front window
     perform action "set_tab_title:backend" on term2
-    input text "python manage.py runserver\n" to term2
+    input text "python manage.py runserver" to term2
+    send key "enter" to term2
 
     -- Tab 3: claude code at project root
     set conf3 to new surface configuration
@@ -265,7 +278,8 @@ tell application "Ghostty"
     new tab in front window with configuration conf3
     set term3 to focused terminal of selected tab of front window
     perform action "set_tab_title:claude" on term3
-    input text "claude\n" to term3
+    input text "claude" to term3
+    send key "enter" to term3
 end tell
 ```
 
@@ -279,7 +293,8 @@ tell application "Ghostty"
     set initial working directory of conf to cwd
     split term direction right with configuration conf
     set newTerm to focused terminal of selected tab of front window
-    input text "claude\n" to newTerm
+    input text "claude" to newTerm
+    send key "enter" to newTerm
 end tell
 ```
 
@@ -296,12 +311,14 @@ tell application "Ghostty"
     -- Split right: server pane
     split term direction right with configuration conf
     set serverTerm to focused terminal of selected tab of front window
-    input text "npm run dev\n" to serverTerm
+    input text "npm run dev" to serverTerm
+    send key "enter" to serverTerm
 
     -- Split the server pane down: logs pane
     split serverTerm direction down with configuration conf
     set logsTerm to focused terminal of selected tab of front window
-    input text "tail -f logs/app.log\n" to logsTerm
+    input text "tail -f logs/app.log" to logsTerm
+    send key "enter" to logsTerm
 
     -- Focus back to left (editor) pane
     perform action "goto_split:left" on logsTerm
