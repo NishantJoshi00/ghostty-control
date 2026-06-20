@@ -1,0 +1,17 @@
+#!/bin/zsh
+# gt-focus <id>
+# Focuses a Ghostty terminal and prints the focused terminal id.
+set -euo pipefail
+
+TID="${1:-}"
+[[ -n "$TID" && "${2:-}" == "" ]] || { echo "usage: gt-focus <id>" >&2; exit 2; }
+
+osascript - "$TID" <<'EOF' || { echo "gt-focus: failed to focus $TID" >&2; exit 1; }
+on run argv
+    tell application "Ghostty"
+        set t to terminal id (item 1 of argv)
+        focus t
+        return id of t
+    end tell
+end run
+EOF

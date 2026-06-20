@@ -40,7 +40,9 @@ on run argv
         send key "c" modifiers "control" to t
         delay 0.3
         input text "exit" to t
-        delay 0.1
+        -- input text is paste-style and async; send Enter only after the paste
+        -- terminator has landed or zsh can see a stray "~" as part of the word.
+        delay 0.8
         send key "enter" to t
     end tell
 end run

@@ -1,0 +1,63 @@
+#!/bin/zsh
+# gt-action <id> <verb> [args...]
+# Performs a constrained Ghostty action. For the full action list, see references/actions.md.
+set -euo pipefail
+
+TID="${1:-}"; VERB="${2:-}"
+[[ -n "$TID" && -n "$VERB" ]] || { echo "usage: gt-action <id> <verb> [args...]" >&2; exit 2; }
+shift 2
+
+need_no_args() {
+  [[ $# -eq 0 ]] || { echo "gt-action: '$VERB' takes no args" >&2; exit 2; }
+}
+
+need_dir() {
+  local dir="${1:-}"
+  [[ -n "$dir" && "${2:-}" == "" ]] || { echo "gt-action: '$VERB' requires one direction" >&2; exit 2; }
+  case "$dir" in
+    right|left|up|down|previous|next) echo "$dir" ;;
+    *) echo "gt-action: unsupported direction '$dir'" >&2; exit 2 ;;
+  esac
+}
+
+case "$VERB" in
+  next-tab) need_no_args "$@"; ACTION="next_tab" ;;
+  previous-tab) need_no_args "$@"; ACTION="previous_tab" ;;
+  equalize-splits) need_no_args "$@"; ACTION="equalize_splits" ;;
+  toggle-split-zoom) need_no_args "$@"; ACTION="toggle_split_zoom" ;;
+  clear-screen) need_no_args "$@"; ACTION="clear_screen" ;;
+  reset) need_no_args "$@"; ACTION="reset" ;;
+  scroll-top) need_no_args "$@"; ACTION="scroll_to_top" ;;
+  scroll-bottom) need_no_args "$@"; ACTION="scroll_to_bottom" ;;
+  goto-split)
+    DIR="$(need_dir "$@")"
+    ACTION="goto_split:$DIR"
+    ;;
+  resize-split)
+    DIR="${1:-}"; AMOUNT="${2:-}"
+    [[ -n "$DIR" && -n "$AMOUNT" && "${3:-}" == "" ]] || { echo "gt-action: resize-split requires direction and amount" >&2; exit 2; }
+    case "$DIR" in right|left|up|down) ;; *) echo "gt-action: unsupported resize direction '$DIR'" >&2; exit 2 ;; esac
+    [[ "$AMOUNT" == <-> ]] || { echo "gt-action: resize amount must be a positive integer" >&2; exit 2; }
+    ACTION="resize_split:$DIR,$AMOUNT"
+    ;;
+  set-tab-title)
+    [[ -n "${1:-}" && "${2:-}" == "" ]] || { echo "gt-action: set-tab-title requires one title" >&2; exit 2; }
+    ACTION="set_tab_title:$1"
+    ;;
+  set-surface-title)
+    [[ -n "${1:-}" && "${2:-}" == "" ]] || { echo "gt-action: set-surface-title requires one title" >&2; exit 2; }
+    ACTION="set_surface_title:$1"
+    ;;
+  *)
+    echo "gt-action: unsupported verb '$VERB' (see references/actions.md for raw action strings)" >&2
+    exit 2
+    ;;
+esac
+
+osascript - "$TID" "$ACTION" <<'EOF' >/dev/null || { echo "gt-action: failed to perform '$VERB' on $TID" >&2; exit 1; }
+on run argv
+    tell application "Ghostty"
+        perform action (item 2 of argv) on (terminal id (item 1 of argv))
+    end tell
+end run
+EOF

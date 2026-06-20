@@ -1,20 +1,31 @@
 #!/bin/zsh
-# gt-open [sibling_id] [--cwd dir] [--cmd "command"] [--name title]
+# gt-open [sibling_id] [--cwd dir] [--cmd "command"] [--name title] [--json]
 # Opens a named tab in the window containing sibling_id (front window if omitted).
 # Prints the new terminal's id on stdout — keep it; it is the handle for every other gt-* script.
 set -euo pipefail
 
-SIBLING="" CWD="" CMD="" NAME=""
+SIBLING="" CWD="" CMD="" NAME="" JSON=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cwd)  CWD="$2"; shift 2 ;;
     --cmd)  CMD="$2"; shift 2 ;;
     --name) NAME="$2"; shift 2 ;;
+    --json) JSON=1; shift ;;
     -h|--help) sed -n '2,5p' "$0"; exit 0 ;;
     *) SIBLING="$1"; shift ;;
   esac
 done
 [[ -n "$NAME" ]] || NAME="gt: ${CMD:-shell}"
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
 
 ID=$(osascript - "$SIBLING" "$CWD" "$CMD" "$NAME" <<'EOF'
 on run argv
@@ -47,4 +58,10 @@ on run argv
 end run
 EOF
 )
-echo "$ID"
+if [[ "$JSON" == "1" ]]; then
+  CMD_PRESENT=false; [[ -n "$CMD" ]] && CMD_PRESENT=true
+  printf '{"backend":"applescript","id":"%s","name":"%s","cwd":"%s","command_present":%s}\n' \
+    "$(json_escape "$ID")" "$(json_escape "$NAME")" "$(json_escape "$CWD")" "$CMD_PRESENT"
+else
+  echo "$ID"
+fi

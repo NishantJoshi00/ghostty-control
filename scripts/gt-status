@@ -1,0 +1,123 @@
+#!/bin/zsh
+# gt-status <id> [--json]
+# Validates a terminal id and prints its current Ghostty object-model status.
+set -euo pipefail
+
+TID="" JSON=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) JSON=1; shift ;;
+    -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+    *) if [[ -z "$TID" ]]; then TID="$1"; else echo "gt-status: unknown arg '$1'" >&2; exit 2; fi; shift ;;
+  esac
+done
+[[ -n "$TID" ]] || { echo "usage: gt-status <id> [--json]" >&2; exit 2; }
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+bool() {
+  [[ "$1" == "true" ]] && printf true || printf false
+}
+
+ROW=$(osascript - "$TID" <<'EOF'
+on clean(s)
+    set s to s as text
+    set oldDelims to AppleScript's text item delimiters
+    set AppleScript's text item delimiters to {tab, linefeed, return}
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set cleaned to parts as text
+    set AppleScript's text item delimiters to oldDelims
+    return cleaned
+end clean
+
+on run argv
+    set wanted to item 1 of argv
+    tell application "Ghostty"
+        set d to character id 9
+        repeat with w in windows
+            set wid to id of w as text
+            try
+                set wname to my clean(name of w)
+            on error
+                set wname to ""
+            end try
+            try
+                set selectedTabId to id of selected tab of w as text
+            on error
+                set selectedTabId to ""
+            end try
+            repeat with tb in tabs of w
+                set tbid to id of tb as text
+                try
+                    set tbname to my clean(name of tb)
+                on error
+                    set tbname to ""
+                end try
+                set isSelected to "false"
+                if tbid is selectedTabId then set isSelected to "true"
+                try
+                    set focusedId to id of focused terminal of tb as text
+                on error
+                    set focusedId to ""
+                end try
+                repeat with t in terminals of tb
+                    set tid to id of t as text
+                    if tid is wanted then
+                        try
+                            set tname to my clean(name of t)
+                        on error
+                            set tname to ""
+                        end try
+                        try
+                            set cwd to my clean(working directory of t)
+                        on error
+                            set cwd to ""
+                        end try
+                        set isFocused to "false"
+                        if tid is focusedId then set isFocused to "true"
+                        return tid & d & wid & d & tbid & d & isSelected & d & isFocused & d & wname & d & tbname & d & tname & d & cwd
+                    end if
+                end repeat
+            end repeat
+        end repeat
+    end tell
+    return ""
+end run
+EOF
+) || { echo "gt-status: Ghostty scripting failed" >&2; exit 1; }
+
+if [[ -z "$ROW" ]]; then
+  if [[ "$JSON" == "1" ]]; then
+    printf '{"backend":"applescript","exists":false,"id":"%s"}\n' "$(json_escape "$TID")"
+  else
+    echo "gt-status: no terminal with id $TID" >&2
+  fi
+  exit 1
+fi
+
+IFS=$'\t' read -r RID WID TBID SELECTED FOCUSED WNAME TBNAME TNAME CWD <<< "$ROW"
+
+if [[ "$JSON" == "1" ]]; then
+  printf '{"backend":"applescript","exists":true,"id":"%s","window_id":"%s","tab_id":"%s","selected":%s,"focused":%s,"window_name":"%s","tab_name":"%s","terminal_name":"%s","cwd":"%s"}\n' \
+    "$(json_escape "$RID")" "$(json_escape "$WID")" "$(json_escape "$TBID")" "$(bool "$SELECTED")" "$(bool "$FOCUSED")" \
+    "$(json_escape "$WNAME")" "$(json_escape "$TBNAME")" "$(json_escape "$TNAME")" "$(json_escape "$CWD")"
+else
+  echo "id=$RID"
+  echo "window_id=$WID"
+  echo "tab_id=$TBID"
+  echo "selected=$SELECTED"
+  echo "focused=$FOCUSED"
+  echo "window_name=$WNAME"
+  echo "tab_name=$TBNAME"
+  echo "terminal_name=$TNAME"
+  echo "cwd=$CWD"
+fi

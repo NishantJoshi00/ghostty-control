@@ -1,0 +1,82 @@
+#!/bin/zsh
+# gt-split <id> right|left|up|down [--cwd DIR] [--cmd CMD] [--title TITLE] [--json]
+# Splits a terminal and prints the new terminal id.
+set -euo pipefail
+
+TID="" DIR="" CWD="" CMD="" TITLE="" JSON=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --cwd) CWD="$2"; shift 2 ;;
+    --cmd) CMD="$2"; shift 2 ;;
+    --title|--name) TITLE="$2"; shift 2 ;;
+    --json) JSON=1; shift ;;
+    -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+    *)
+      if [[ -z "$TID" ]]; then
+        TID="$1"
+      elif [[ -z "$DIR" ]]; then
+        DIR="$1"
+      else
+        echo "gt-split: unknown arg '$1'" >&2; exit 2
+      fi
+      shift
+      ;;
+  esac
+done
+
+[[ -n "$TID" && -n "$DIR" ]] || { echo "usage: gt-split <id> right|left|up|down [--cwd DIR] [--cmd CMD] [--title TITLE] [--json]" >&2; exit 2; }
+case "$DIR" in
+  right|left|up|down) ;;
+  *) echo "gt-split: direction must be right, left, up, or down" >&2; exit 2 ;;
+esac
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+NEW_ID=$(osascript - "$TID" "$DIR" "$CWD" "$CMD" "$TITLE" <<'EOF'
+on run argv
+    set tid to item 1 of argv
+    set dirName to item 2 of argv
+    set cwd to item 3 of argv
+    set cmd to item 4 of argv
+    set titleName to item 5 of argv
+    tell application "Ghostty"
+        set t to terminal id tid
+        focus t
+        set conf to new surface configuration
+        if cwd is not "" then set initial working directory of conf to cwd
+        if cmd is not "" then set initial input of conf to (cmd & linefeed)
+
+        if dirName is "right" then
+            split t direction right with configuration conf
+        else if dirName is "left" then
+            split t direction left with configuration conf
+        else if dirName is "up" then
+            split t direction up with configuration conf
+        else
+            split t direction down with configuration conf
+        end if
+
+        delay 0.5
+        set newTerm to focused terminal of selected tab of front window
+        if titleName is not "" then perform action ("set_surface_title:" & titleName) on newTerm
+        return id of newTerm
+    end tell
+end run
+EOF
+) || { echo "gt-split: failed to split $TID" >&2; exit 1; }
+
+if [[ "$JSON" == "1" ]]; then
+  CMD_PRESENT=false; [[ -n "$CMD" ]] && CMD_PRESENT=true
+  printf '{"backend":"applescript","id":"%s","parent_id":"%s","direction":"%s","cwd":"%s","title":"%s","command_present":%s}\n' \
+    "$(json_escape "$NEW_ID")" "$(json_escape "$TID")" "$(json_escape "$DIR")" "$(json_escape "$CWD")" "$(json_escape "$TITLE")" "$CMD_PRESENT"
+else
+  echo "$NEW_ID"
+fi

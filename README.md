@@ -2,9 +2,12 @@
 
 [![skills.sh](https://skills.sh/b/NishantJoshi00/ghostty-control)](https://skills.sh/NishantJoshi00/ghostty-control)
 
-Browser use, but for terminals. Agents open tabs, run commands, drive TUIs, and read the rendered screen back, as text or as a screenshot. Built on [Ghostty](https://ghostty.org)'s AppleScript API, macOS only.
+Browser use, but for terminals. Agents open named Ghostty tabs, run commands,
+drive TUIs, wait for rendered output, and read the screen back as text or as a
+screenshot.
 
-The loop is the same one browser agents run: act, wait, perceive, assert. The agent does something in the terminal, waits for the screen to settle or a pattern to render, reads what it sees, and decides what to do next.
+The public interface is the `scripts/gt-*` command set. AppleScript is the
+macOS backend.
 
 ## Install
 
@@ -15,46 +18,68 @@ npx skills add NishantJoshi00/ghostty-control
 ## Requirements
 
 - macOS
-- Ghostty **1.3.0 or later** (the AppleScript scripting API shipped in 1.3 as a preview feature; expect changes in 1.4)
-- Accessibility + Screen Recording permissions for screenshots (`gt-shot`)
+- Ghostty with AppleScript scripting enabled
+- Accessibility and Screen Recording permissions for screenshot flows
 
-Verify scripting is available:
+Preflight:
 
 ```bash
-osascript -e 'tell application "Ghostty" to new surface configuration' >/dev/null 2>&1 \
-  && echo OK || echo "scripting not available"
+scripts/gt-probe
+scripts/gt-probe --json
 ```
 
-## What's inside
-
-- **`SKILL.md`**: the AppleScript dictionary in practice: windows, tabs, splits, surface configurations, key/text/mouse input, workspace patterns.
-- **`references/automation.md`**: the testing cheatsheet: verified capture semantics, key-name reference, anti-flake practices, and every caveat we hit while exercising the kit against real programs (neovim, less, python).
-- **`references/actions.md`**: complete `perform action` string reference.
-- **`scripts/`**: ten standalone zsh tools (no harness assumptions; work for any agent or human):
-
-| Script | Does |
-|--------|------|
-| `gt-open` | named tab, prints the terminal id (the handle everything else takes) |
-| `gt-run` | run a command, block until it finishes, print the screen, propagate exit code |
-| `gt-send` | keystrokes, text, raw input (`--raw` for kitty-protocol apps like neovim) |
-| `gt-wait` | block until a pattern renders, or until the screen settles |
-| `gt-screen` | rendered screen as text |
-| `gt-shot` | terminal window as PNG (tab-targeted with an id) |
-| `gt-mouse` | click, move, scroll |
-| `gt-copy` / `gt-paste` | clipboard in and out, user's clipboard restored |
-| `gt-close` | dialog-free teardown (graceful exit, forced fallback auto-confirms the sheet) |
-
-A session:
+## Quick Use
 
 ```bash
-id=$(scripts/gt-open --cwd ~/repo --name "gt: tests")
-scripts/gt-run "$id" "cargo test" && echo passed
+id=$(scripts/gt-open --cwd "$PWD" --name "gt: tests")
+scripts/gt-run "$id" "cargo test"
 scripts/gt-close "$id"
 ```
 
+The loop is:
+
+```text
+probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
+```
+
+## Scripts
+
+| Script | Does |
+|--------|------|
+| `gt-probe` | preflight macOS, `osascript`, Ghostty scripting, clipboard, screenshot command |
+| `gt-open` | open a named tab, print the terminal id |
+| `gt-list` | list Ghostty terminals |
+| `gt-status` | validate and inspect one terminal id |
+| `gt-run` | run a command, block until it finishes, print the screen, propagate exit code |
+| `gt-send` | keystrokes, text, raw input, stdin blocks |
+| `gt-wait` | block until a pattern renders, or until the screen settles |
+| `gt-screen` | rendered screen as text |
+| `gt-shot` | terminal window as PNG |
+| `gt-focus` | focus a terminal by id |
+| `gt-split` | create a split from a terminal by id |
+| `gt-action` | constrained Ghostty actions such as tab/split navigation and titles |
+| `gt-mouse` | click, move, scroll |
+| `gt-copy` / `gt-paste` | clipboard in and out, user's clipboard restored |
+| `gt-close` | dialog-free teardown |
+
+JSON is available where discovery or creation benefits from machine-readable
+data: `gt-probe`, `gt-open`, `gt-list`, `gt-status`, and `gt-split`.
+
+## References
+
+- `SKILL.md`: script-first operating manual for agents.
+- `references/api-contract.md`: stable command behavior for people building on
+  this skill.
+- `references/recipes.md`: script-first workflow examples.
+- `references/automation.md`: verified TUI automation practices.
+- `references/applescript.md`: direct AppleScript escape hatch.
+- `references/actions.md`: Ghostty action string reference.
+
 ## Provenance
 
-Every command, key name, and caveat in here was verified against a live Ghostty.
+The original command set and caveats were verified against a live Ghostty. New
+script changes should be checked with `zsh -n scripts/gt-*` plus a live smoke
+test when Ghostty is available.
 
 ## License
 

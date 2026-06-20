@@ -1,0 +1,79 @@
+#!/bin/zsh
+# gt-probe [--json]
+# Preflight for this skill. Checks whether the current host can drive Ghostty
+# through the script API before an agent opens tabs or sends input.
+set -euo pipefail
+
+JSON=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) JSON=1; shift ;;
+    -h|--help) sed -n '2,5p' "$0"; exit 0 ;;
+    *) echo "gt-probe: unknown arg '$1'" >&2; exit 2 ;;
+  esac
+done
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+bool() {
+  [[ "$1" == "1" ]] && printf true || printf false
+}
+
+KERNEL="$(uname -s 2>/dev/null || echo unknown)"
+DARWIN=0; [[ "$KERNEL" == "Darwin" ]] && DARWIN=1
+
+OSASCRIPT=0; command -v osascript >/dev/null 2>&1 && OSASCRIPT=1
+PBCOPY=0; command -v pbcopy >/dev/null 2>&1 && PBCOPY=1
+PBPASTE=0; command -v pbpaste >/dev/null 2>&1 && PBPASTE=1
+SCREENCAPTURE=0; command -v screencapture >/dev/null 2>&1 && SCREENCAPTURE=1
+
+GHOSTTY=0
+GHOSTTY_DETAIL="not checked"
+if [[ "$DARWIN" == "1" && "$OSASCRIPT" == "1" ]]; then
+  if OUT=$(osascript -e 'tell application "Ghostty" to new surface configuration' 2>&1 >/dev/null); then
+    GHOSTTY=1
+    GHOSTTY_DETAIL="Ghostty scripting available"
+  else
+    GHOSTTY_DETAIL="$OUT"
+  fi
+else
+  GHOSTTY_DETAIL="requires macOS and osascript"
+fi
+
+OK=0
+if [[ "$DARWIN" == "1" && "$OSASCRIPT" == "1" && "$GHOSTTY" == "1" && "$PBCOPY" == "1" && "$PBPASTE" == "1" ]]; then
+  OK=1
+fi
+
+if [[ "$JSON" == "1" ]]; then
+  printf '{'
+  printf '"ok":%s,' "$(bool "$OK")"
+  printf '"backend":"applescript",'
+  printf '"checks":{'
+  printf '"darwin":{"ok":%s,"detail":"%s"},' "$(bool "$DARWIN")" "$(json_escape "$KERNEL")"
+  printf '"osascript":{"ok":%s},' "$(bool "$OSASCRIPT")"
+  printf '"ghostty_scripting":{"ok":%s,"detail":"%s"},' "$(bool "$GHOSTTY")" "$(json_escape "$GHOSTTY_DETAIL")"
+  printf '"pbcopy":{"ok":%s},' "$(bool "$PBCOPY")"
+  printf '"pbpaste":{"ok":%s},' "$(bool "$PBPASTE")"
+  printf '"screencapture":{"ok":%s,"required":false,"detail":"Screen Recording is verified by gt-shot when used"}' "$(bool "$SCREENCAPTURE")"
+  printf '}}\n'
+else
+  echo "ghostty-control probe"
+  [[ "$DARWIN" == "1" ]] && echo "ok   macOS: $KERNEL" || echo "fail macOS: $KERNEL"
+  [[ "$OSASCRIPT" == "1" ]] && echo "ok   osascript" || echo "fail osascript: not found"
+  [[ "$GHOSTTY" == "1" ]] && echo "ok   Ghostty scripting" || echo "fail Ghostty scripting: $GHOSTTY_DETAIL"
+  [[ "$PBCOPY" == "1" ]] && echo "ok   pbcopy" || echo "fail pbcopy: not found"
+  [[ "$PBPASTE" == "1" ]] && echo "ok   pbpaste" || echo "fail pbpaste: not found"
+  [[ "$SCREENCAPTURE" == "1" ]] && echo "warn screenshots: screencapture present; Screen Recording checked by gt-shot" || echo "warn screenshots: screencapture not found"
+  [[ "$OK" == "1" ]] && echo "ready: yes" || echo "ready: no"
+fi
+
+[[ "$OK" == "1" ]]

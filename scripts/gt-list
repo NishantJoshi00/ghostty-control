@@ -1,0 +1,116 @@
+#!/bin/zsh
+# gt-list [--json]
+# Lists Ghostty terminals known to the AppleScript object model.
+set -euo pipefail
+
+JSON=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) JSON=1; shift ;;
+    -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+    *) echo "gt-list: unknown arg '$1'" >&2; exit 2 ;;
+  esac
+done
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+bool() {
+  [[ "$1" == "true" ]] && printf true || printf false
+}
+
+ROWS=$(osascript <<'EOF'
+on clean(s)
+    set s to s as text
+    set oldDelims to AppleScript's text item delimiters
+    set AppleScript's text item delimiters to {tab, linefeed, return}
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set cleaned to parts as text
+    set AppleScript's text item delimiters to oldDelims
+    return cleaned
+end clean
+
+tell application "Ghostty"
+    set out to ""
+    set d to character id 9
+    repeat with w in windows
+        set wid to id of w as text
+        try
+            set wname to my clean(name of w)
+        on error
+            set wname to ""
+        end try
+        try
+            set selectedTabId to id of selected tab of w as text
+        on error
+            set selectedTabId to ""
+        end try
+        repeat with tb in tabs of w
+            set tbid to id of tb as text
+            try
+                set tbname to my clean(name of tb)
+            on error
+                set tbname to ""
+            end try
+            set isSelected to "false"
+            if tbid is selectedTabId then set isSelected to "true"
+            try
+                set focusedId to id of focused terminal of tb as text
+            on error
+                set focusedId to ""
+            end try
+            repeat with t in terminals of tb
+                set tid to id of t as text
+                try
+                    set tname to my clean(name of t)
+                on error
+                    set tname to ""
+                end try
+                try
+                    set cwd to my clean(working directory of t)
+                on error
+                    set cwd to ""
+                end try
+                set isFocused to "false"
+                if tid is focusedId then set isFocused to "true"
+                set out to out & tid & d & wid & d & tbid & d & isSelected & d & isFocused & d & wname & d & tbname & d & tname & d & cwd & linefeed
+            end repeat
+        end repeat
+    end repeat
+    return out
+end tell
+EOF
+) || { echo "gt-list: Ghostty scripting failed" >&2; exit 1; }
+
+if [[ "$JSON" == "1" ]]; then
+  printf '{"backend":"applescript","terminals":['
+  FIRST=1
+  while IFS=$'\t' read -r TID WID TBID SELECTED FOCUSED WNAME TBNAME TNAME CWD; do
+    [[ -n "${TID:-}" ]] || continue
+    [[ "$FIRST" == "1" ]] || printf ','
+    FIRST=0
+    printf '{"id":"%s","window_id":"%s","tab_id":"%s","selected":%s,"focused":%s,"window_name":"%s","tab_name":"%s","terminal_name":"%s","cwd":"%s"}' \
+      "$(json_escape "$TID")" "$(json_escape "$WID")" "$(json_escape "$TBID")" "$(bool "$SELECTED")" "$(bool "$FOCUSED")" \
+      "$(json_escape "$WNAME")" "$(json_escape "$TBNAME")" "$(json_escape "$TNAME")" "$(json_escape "$CWD")"
+  done <<< "$ROWS"
+  printf ']}\n'
+else
+  printf '%-36s %-8s %-8s %-3s %-3s %s\n' "terminal_id" "window" "tab" "sel" "foc" "name"
+  while IFS=$'\t' read -r TID WID TBID SELECTED FOCUSED WNAME TBNAME TNAME CWD; do
+    [[ -n "${TID:-}" ]] || continue
+    SEL="-"; [[ "$SELECTED" == "true" ]] && SEL="yes"
+    FOC="-"; [[ "$FOCUSED" == "true" ]] && FOC="yes"
+    NAME="$TBNAME"
+    [[ -n "$NAME" ]] || NAME="$TNAME"
+    [[ -n "$NAME" ]] || NAME="$WNAME"
+    printf '%-36s %-8s %-8s %-3s %-3s %s\n' "$TID" "$WID" "$TBID" "$SEL" "$FOC" "$NAME"
+  done <<< "$ROWS"
+fi
