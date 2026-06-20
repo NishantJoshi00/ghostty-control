@@ -5,6 +5,8 @@ description: Script-first control for Ghostty on macOS. Open named terminals, ru
 
 # Ghostty Control
 
+!`[ "$(uname -s)" = "Darwin" ] && echo "OK: macOS detected" || echo "ABORT: ghostty-control is macOS-only; halt and report this"`
+
 Use the `scripts/gt-*` commands first. They are the public API for this skill.
 AppleScript is the implementation backend and an escape hatch, not the normal
 interface.
