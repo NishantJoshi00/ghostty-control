@@ -52,7 +52,7 @@ if ! "$HERE/gt-wait" "$TID" --for "GT_END_${NONCE}:" --timeout "$TIMEOUT"; then
 fi
 
 SCREEN=$("$HERE/gt-screen" "$TID")
-RC=$(printf '%s' "$SCREEN" | grep -oE "GT_END_${NONCE}:[0-9]+" | tail -1 | cut -d: -f2)
+RC=$(printf '%s' "$SCREEN" | grep -oE "GT_END_${NONCE}:[0-9]+" | tail -1 | cut -d: -f2 || true)
 FILTERED=$(printf '%s\n' "$SCREEN" | grep -v "GT_EN" || true)
 if [[ "$JSON" == "1" ]]; then
   OK=false; [[ "${RC:-1}" == "0" ]] && OK=true

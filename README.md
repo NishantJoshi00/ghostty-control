@@ -42,6 +42,19 @@ The loop is:
 probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 ```
 
+## Tests
+
+Tests use ShellSpec and drive real Ghostty. They open temporary tabs named
+`gt: test ...`; each example tracks the exact ids it opens and closes only
+those ids.
+
+```bash
+shellspec
+shellspec tests/unit
+shellspec tests/integration
+shellspec tests/regression
+```
+
 ## Scripts
 
 | Script | Does |

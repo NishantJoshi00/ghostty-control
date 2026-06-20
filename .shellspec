@@ -1,0 +1,5 @@
+--shell /bin/zsh
+--helperdir tests
+--require test_helper
+--default-path tests
+--pattern *_test.sh
