@@ -119,10 +119,10 @@ Packaged in [`../scripts/`](../scripts/) so a session is one-liners instead of h
 | `gt-open [sibling_id] [--cwd d] [--cmd c] [--name n] [--json]` | open | named tab (in sibling's window if id given), prints terminal id |
 | `gt-list [--json]` | discover | list visible Ghostty terminals |
 | `gt-status <id> [--json]` | discover | validate one terminal id |
-| `gt-run <id> "cmd" [--timeout N]` | act+wait | run command, block until done (sentinel), print screen, exit with cmd's code |
+| `gt-run <id> "cmd" [--timeout N] [--json]` | act+wait | run command, block until done (sentinel), print screen, exit with cmd's code |
 | `gt-send <id> --key SPEC / --text STR / --stdin / --enter` | act | keystrokes and text, in argument order |
-| `gt-wait <id> [--for pat] [--timeout N]` | wait | settle loop, or block until pattern renders |
-| `gt-screen <id> [--scrollback]` | perceive | screen as text on stdout |
+| `gt-wait <id> [--for pat] [--timeout N] [--json]` | wait | settle loop, or block until pattern renders |
+| `gt-screen <id> [--scrollback] [--json]` | perceive | screen as text on stdout |
 | `gt-shot [out.png]` | perceive | front Ghostty window as PNG, prints path |
 | `gt-focus <id>` | manage | focus a terminal by id |
 | `gt-split <id> right|left|up|down [--cwd d] [--cmd c] [--title t] [--json]` | manage | create a split and print its terminal id |
@@ -130,7 +130,7 @@ Packaged in [`../scripts/`](../scripts/) so a session is one-liners instead of h
 | `gt-mouse <id> click x y / move x y / scroll dy` | act | mouse events (pixels, surface origin) |
 | `gt-copy <id>` | perceive | terminal's selection to stdout |
 | `gt-paste <id> [text]` | act | true clipboard-paste event (clipboard restored) |
-| `gt-close <id> [--force]` | teardown | dialog-free close: interrupt + `exit` first; falls back to forced close and auto-confirms Ghostty's "process is running" sheet |
+| `gt-close <id> [--force] [--json]` | teardown | dialog-free close: interrupt + EOF first; falls back to forced close and auto-confirms Ghostty's "process is running" sheet |
 
 CLI testing — `gt-run` covers most sessions alone:
 

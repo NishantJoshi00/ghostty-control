@@ -29,6 +29,7 @@ For machine-readable discovery:
 scripts/gt-probe --json
 scripts/gt-list --json
 scripts/gt-status "$id" --json
+scripts/gt-run "$id" "npm test" --json
 ```
 
 ## Core Loop
@@ -52,17 +53,17 @@ probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 | Open a named tab | `scripts/gt-open [sibling_id] [--cwd DIR] [--cmd CMD] [--name NAME] [--json]` |
 | Discover terminals | `scripts/gt-list [--json]` |
 | Validate one terminal | `scripts/gt-status <id> [--json]` |
-| Run a shell command and wait | `scripts/gt-run <id> "command" [--timeout N]` |
+| Run a shell command and wait | `scripts/gt-run <id> "command" [--timeout N] [--json]` |
 | Send keys/text/raw input | `scripts/gt-send <id> --key SPEC --text STR --raw STR --enter` |
-| Wait for text or settle | `scripts/gt-wait <id> [--for PATTERN] [--timeout N]` |
-| Read rendered text | `scripts/gt-screen <id> [--scrollback]` |
+| Wait for text or settle | `scripts/gt-wait <id> [--for PATTERN] [--timeout N] [--json]` |
+| Read rendered text | `scripts/gt-screen <id> [--scrollback] [--json]` |
 | Capture an image | `scripts/gt-shot [id] [out.png]` |
 | Mouse input | `scripts/gt-mouse <id> click/move/scroll ...` |
 | Focus a terminal | `scripts/gt-focus <id>` |
 | Create a split | `scripts/gt-split <id> right|left|up|down [--cwd DIR] [--cmd CMD] [--title TITLE] [--json]` |
 | Safe Ghostty actions | `scripts/gt-action <id> <verb> [args...]` |
 | Copy/paste selection | `scripts/gt-copy <id>`, `scripts/gt-paste <id> [text]` |
-| Close task terminal | `scripts/gt-close <id> [--force]` |
+| Close task terminal | `scripts/gt-close <id> [--force] [--json]` |
 
 ## Rules
 
@@ -124,3 +125,5 @@ See more task patterns in [references/recipes.md](references/recipes.md).
 - [AppleScript escape hatch](references/applescript.md): object model and direct
   Ghostty scripting when no `gt-*` primitive exists.
 - [Action reference](references/actions.md): Ghostty action strings.
+- [Future work](references/future.md): documented ideas for helpers and
+  additional backends.

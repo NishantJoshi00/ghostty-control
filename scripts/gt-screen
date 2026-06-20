@@ -1,29 +1,50 @@
 #!/bin/zsh
-# gt-screen <id> [--scrollback]
+# gt-screen <id> [--scrollback] [--json]
 # Prints the terminal's rendered screen (or full scrollback) as text on stdout.
 # Saves and restores the user's clipboard.
 set -euo pipefail
 
-TID="" ACTION="write_screen_file:copy"
+TID="" ACTION="write_screen_file:copy" MODE="screen" JSON=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --scrollback) ACTION="write_scrollback_file:copy"; shift ;;
+    --scrollback) ACTION="write_scrollback_file:copy"; MODE="scrollback"; shift ;;
+    --json) JSON=1; shift ;;
     -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
     *) TID="$1"; shift ;;
   esac
 done
-[[ -n "$TID" ]] || { echo "usage: gt-screen <id> [--scrollback]" >&2; exit 2; }
+[[ -n "$TID" ]] || { echo "usage: gt-screen <id> [--scrollback] [--json]" >&2; exit 2; }
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
 
 OLD_CLIP=$(pbpaste 2>/dev/null || true)
+restore_clipboard() {
+  printf '%s' "$OLD_CLIP" | pbcopy >/dev/null 2>&1 || true
+}
+trap restore_clipboard EXIT
+
 pbcopy < /dev/null    # clear, so we can poll for arrival
 
-osascript - "$TID" "$ACTION" <<'EOF' >/dev/null
+if ! osascript - "$TID" "$ACTION" <<'EOF' >/dev/null
 on run argv
     tell application "Ghostty"
         perform action (item 2 of argv) on (terminal id (item 1 of argv))
     end tell
 end run
 EOF
+then
+  [[ "$JSON" == "1" ]] && printf '{"backend":"applescript","id":"%s","mode":"%s","ok":false,"text":"","error":"capture_action_failed"}\n' "$(json_escape "$TID")" "$MODE"
+  echo "gt-screen: capture action failed" >&2
+  exit 1
+fi
 
 # poll clipboard until the temp-file path lands (write_*_file:copy puts a PATH there)
 PATH_ON_CLIP=""
@@ -35,10 +56,16 @@ done
 
 STATUS=0
 if [[ -f "$PATH_ON_CLIP" ]]; then
-  cat "$PATH_ON_CLIP"
+  if [[ "$JSON" == "1" ]]; then
+    TEXT=$(cat "$PATH_ON_CLIP")
+    printf '{"backend":"applescript","id":"%s","mode":"%s","ok":true,"text":"%s"}\n' \
+      "$(json_escape "$TID")" "$MODE" "$(json_escape "$TEXT")"
+  else
+    cat "$PATH_ON_CLIP"
+  fi
 else
+  [[ "$JSON" == "1" ]] && printf '{"backend":"applescript","id":"%s","mode":"%s","ok":false,"text":"","error":"capture_failed","clipboard":"%s"}\n' "$(json_escape "$TID")" "$MODE" "$(json_escape "$PATH_ON_CLIP")"
   echo "gt-screen: capture failed (clipboard: '$PATH_ON_CLIP')" >&2
   STATUS=1
 fi
-printf '%s' "$OLD_CLIP" | pbcopy
 exit $STATUS

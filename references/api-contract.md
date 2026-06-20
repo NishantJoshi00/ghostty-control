@@ -33,7 +33,20 @@ Initial JSON-capable commands:
 - `gt-open --json`
 - `gt-list --json`
 - `gt-status --json`
+- `gt-run --json`
+- `gt-wait --json`
+- `gt-screen --json`
 - `gt-split --json`
+- `gt-close --json`
+
+JSON command shapes:
+
+- `gt-run --json`: `ok`, `timed_out`, `sentinel_found`, `exit_code`, `screen`,
+  and `error`.
+- `gt-wait --json`: `ok`, `mode`, `pattern`, `matched`, `settled`,
+  `timed_out`, `timeout`, and `elapsed_seconds`.
+- `gt-screen --json`: `ok`, `mode`, `text`, and capture failure details.
+- `gt-close --json`: `status`, `method`, and `closed`.
 
 ## Safety
 

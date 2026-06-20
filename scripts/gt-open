@@ -1,21 +1,24 @@
 #!/bin/zsh
-# gt-open [sibling_id] [--cwd dir] [--cmd "command"] [--name title] [--json]
+# gt-open [sibling_id] [--cwd dir] [--cmd "command"] [--name title] [--ready-delay seconds] [--json]
 # Opens a named tab in the window containing sibling_id (front window if omitted).
 # Prints the new terminal's id on stdout — keep it; it is the handle for every other gt-* script.
 set -euo pipefail
 
-SIBLING="" CWD="" CMD="" NAME="" JSON=0
+SIBLING="" CWD="" CMD="" NAME="" READY_DELAY=1.5 JSON=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cwd)  CWD="$2"; shift 2 ;;
     --cmd)  CMD="$2"; shift 2 ;;
     --name) NAME="$2"; shift 2 ;;
+    --ready-delay) READY_DELAY="$2"; shift 2 ;;
+    --no-wait) READY_DELAY=0; shift ;;
     --json) JSON=1; shift ;;
     -h|--help) sed -n '2,5p' "$0"; exit 0 ;;
     *) SIBLING="$1"; shift ;;
   esac
 done
 [[ -n "$NAME" ]] || NAME="gt: ${CMD:-shell}"
+[[ "$READY_DELAY" == <->(|.<->) ]] || { echo "gt-open: --ready-delay must be a non-negative number" >&2; exit 2; }
 
 json_escape() {
   local s="${1-}"
@@ -27,12 +30,13 @@ json_escape() {
   printf '%s' "$s"
 }
 
-ID=$(osascript - "$SIBLING" "$CWD" "$CMD" "$NAME" <<'EOF'
+ID=$(osascript - "$SIBLING" "$CWD" "$CMD" "$NAME" "$READY_DELAY" <<'EOF'
 on run argv
     set sibling to item 1 of argv
     set cwd to item 2 of argv
     set cmd to item 3 of argv
     set tabName to item 4 of argv
+    set readyDelay to item 5 of argv as real
     tell application "Ghostty"
         -- pick target window: the one containing the sibling terminal, else front
         set w to front window
@@ -50,7 +54,7 @@ on run argv
         if cwd is not "" then set initial working directory of conf to cwd
         if cmd is not "" then set initial input of conf to (cmd & linefeed)
         set tb to new tab in w with configuration conf
-        delay 0.5
+        delay readyDelay
         set t to focused terminal of tb
         perform action ("set_tab_title:" & tabName) on t
         return id of t
@@ -60,8 +64,8 @@ EOF
 )
 if [[ "$JSON" == "1" ]]; then
   CMD_PRESENT=false; [[ -n "$CMD" ]] && CMD_PRESENT=true
-  printf '{"backend":"applescript","id":"%s","name":"%s","cwd":"%s","command_present":%s}\n' \
-    "$(json_escape "$ID")" "$(json_escape "$NAME")" "$(json_escape "$CWD")" "$CMD_PRESENT"
+  printf '{"backend":"applescript","id":"%s","name":"%s","cwd":"%s","command_present":%s,"ready_delay":%s}\n' \
+    "$(json_escape "$ID")" "$(json_escape "$NAME")" "$(json_escape "$CWD")" "$CMD_PRESENT" "$READY_DELAY"
 else
   echo "$ID"
 fi

@@ -1,5 +1,5 @@
 #!/bin/zsh
-# gt-run <id> "command" [--timeout SECONDS]
+# gt-run <id> "command" [--timeout SECONDS] [--json]
 # Runs a shell command in the terminal, blocks until it finishes, prints the screen.
 # Completion is detected by a sentinel: the typed line builds the marker from two
 # halves ('GT_EN''D_...') so the echoed command line can never match the pattern --
@@ -7,27 +7,61 @@
 set -euo pipefail
 
 HERE="${0:A:h}"
-TID="" CMD="" TIMEOUT=60
+TID="" CMD="" TIMEOUT=60 JSON=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --timeout) TIMEOUT="$2"; shift 2 ;;
+    --json) JSON=1; shift ;;
     -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
     *) if [[ -z "$TID" ]]; then TID="$1"; else CMD="$1"; fi; shift ;;
   esac
 done
-[[ -n "$TID" && -n "$CMD" ]] || { echo "usage: gt-run <id> \"command\" [--timeout N]" >&2; exit 2; }
+[[ -n "$TID" && -n "$CMD" ]] || { echo "usage: gt-run <id> \"command\" [--timeout N] [--json]" >&2; exit 2; }
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+emit_json() {
+  local ok="$1" timed_out="$2" sentinel_found="$3" exit_code="$4" screen="$5" error="${6:-}"
+  printf '{"backend":"applescript","id":"%s","ok":%s,"timed_out":%s,"sentinel_found":%s,"exit_code":%s,"screen":"%s","error":"%s"}\n' \
+    "$(json_escape "$TID")" "$ok" "$timed_out" "$sentinel_found" "$exit_code" "$(json_escape "$screen")" "$(json_escape "$error")"
+}
 
 NONCE="$$_$RANDOM"
 # typed text contains GT_EN''D_<nonce>; rendered output contains GT_END_<nonce>
-"$HERE/gt-send" "$TID" --text "$CMD; printf '\\nGT_EN''D_${NONCE}:%s\\n' \$?" --enter
+if ! "$HERE/gt-send" "$TID" --text "$CMD; printf '\\nGT_EN''D_${NONCE}:%s\\n' \$?" --enter; then
+  [[ "$JSON" == "1" ]] && emit_json false false false null "" "send_failed"
+  echo "gt-run: failed to send command" >&2
+  exit 1
+fi
 
 if ! "$HERE/gt-wait" "$TID" --for "GT_END_${NONCE}:" --timeout "$TIMEOUT"; then
+  SCREEN=$("$HERE/gt-screen" "$TID" 2>/dev/null || true)
+  FILTERED=$(printf '%s\n' "$SCREEN" | grep -v "GT_EN" || true)
+  [[ "$JSON" == "1" ]] && emit_json false true false null "$FILTERED" "timeout"
   echo "gt-run: command still running after ${TIMEOUT}s" >&2
-  "$HERE/gt-screen" "$TID"
+  [[ "$JSON" == "1" ]] || printf '%s\n' "$SCREEN"
   exit 1
 fi
 
 SCREEN=$("$HERE/gt-screen" "$TID")
 RC=$(printf '%s' "$SCREEN" | grep -oE "GT_END_${NONCE}:[0-9]+" | tail -1 | cut -d: -f2)
-printf '%s\n' "$SCREEN" | grep -v "GT_EN" || true
-exit "${RC:-0}"
+FILTERED=$(printf '%s\n' "$SCREEN" | grep -v "GT_EN" || true)
+if [[ "$JSON" == "1" ]]; then
+  OK=false; [[ "${RC:-1}" == "0" ]] && OK=true
+  if [[ -n "${RC:-}" ]]; then
+    emit_json "$OK" false true "$RC" "$FILTERED"
+  else
+    emit_json false false false null "$FILTERED" "sentinel_parse_failed"
+  fi
+else
+  printf '%s\n' "$FILTERED"
+fi
+exit "${RC:-1}"

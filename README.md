@@ -62,8 +62,8 @@ probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 | `gt-copy` / `gt-paste` | clipboard in and out, user's clipboard restored |
 | `gt-close` | dialog-free teardown |
 
-JSON is available where discovery or creation benefits from machine-readable
-data: `gt-probe`, `gt-open`, `gt-list`, `gt-status`, and `gt-split`.
+JSON is available for machine-readable flows: `gt-probe`, `gt-open`, `gt-list`,
+`gt-status`, `gt-run`, `gt-wait`, `gt-screen`, `gt-split`, and `gt-close`.
 
 ## References
 
@@ -74,6 +74,8 @@ data: `gt-probe`, `gt-open`, `gt-list`, `gt-status`, and `gt-split`.
 - `references/automation.md`: verified TUI automation practices.
 - `references/applescript.md`: direct AppleScript escape hatch.
 - `references/actions.md`: Ghostty action string reference.
+- `references/future.md`: documented ideas for future helpers and alternate
+  backends.
 
 ## Provenance
 

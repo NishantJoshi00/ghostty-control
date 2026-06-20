@@ -1,34 +1,61 @@
 #!/bin/zsh
-# gt-wait <id> [--for PATTERN] [--timeout SECONDS] [--interval SECONDS]
+# gt-wait <id> [--for PATTERN] [--timeout SECONDS] [--interval SECONDS] [--json]
 # Pattern mode (--for): block until PATTERN (grep -E) appears on the screen. Exit 1 on timeout.
 # Settle mode (no --for): block until two consecutive frames are identical (repaint finished).
 # Note: spinners/progress bars never settle — use --for on animated screens.
 set -euo pipefail
 
 HERE="${0:A:h}"
-TID="" PATTERN="" TIMEOUT=15 INTERVAL=0.15
+TID="" PATTERN="" TIMEOUT=15 INTERVAL=0.15 JSON=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --for)      PATTERN="$2"; shift 2 ;;
     --timeout)  TIMEOUT="$2"; shift 2 ;;
     --interval) INTERVAL="$2"; shift 2 ;;
+    --json)     JSON=1; shift ;;
     -h|--help)  sed -n '2,5p' "$0"; exit 0 ;;
     *) TID="$1"; shift ;;
   esac
 done
-[[ -n "$TID" ]] || { echo "usage: gt-wait <id> [--for PATTERN] [--timeout N]" >&2; exit 2; }
+[[ -n "$TID" ]] || { echo "usage: gt-wait <id> [--for PATTERN] [--timeout N] [--json]" >&2; exit 2; }
 
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+emit_json() {
+  local ok="$1" matched="$2" settled="$3" timed_out="$4" elapsed="$5"
+  local mode="settle"
+  [[ -n "$PATTERN" ]] && mode="pattern"
+  printf '{"backend":"applescript","id":"%s","ok":%s,"mode":"%s","pattern":"%s","matched":%s,"settled":%s,"timed_out":%s,"timeout":%s,"elapsed_seconds":%s}\n' \
+    "$(json_escape "$TID")" "$ok" "$mode" "$(json_escape "$PATTERN")" "$matched" "$settled" "$timed_out" "$TIMEOUT" "$elapsed"
+}
+
+START=$(date +%s)
 DEADLINE=$(( $(date +%s) + TIMEOUT ))
 PREV=""
 while (( $(date +%s) < DEADLINE )); do
   FRAME=$("$HERE/gt-screen" "$TID" 2>/dev/null || true)
   if [[ -n "$PATTERN" ]]; then
-    if printf '%s' "$FRAME" | grep -qE "$PATTERN"; then exit 0; fi
+    if printf '%s' "$FRAME" | grep -qE "$PATTERN"; then
+      [[ "$JSON" == "1" ]] && emit_json true true false false "$(( $(date +%s) - START ))"
+      exit 0
+    fi
   else
-    if [[ -n "$FRAME" && "$FRAME" == "$PREV" ]]; then exit 0; fi
+    if [[ -n "$FRAME" && "$FRAME" == "$PREV" ]]; then
+      [[ "$JSON" == "1" ]] && emit_json true false true false "$(( $(date +%s) - START ))"
+      exit 0
+    fi
     PREV="$FRAME"
   fi
   sleep "$INTERVAL"
 done
+[[ "$JSON" == "1" ]] && emit_json false false false true "$(( $(date +%s) - START ))"
 echo "gt-wait: timeout after ${TIMEOUT}s${PATTERN:+ waiting for /$PATTERN/}" >&2
 exit 1

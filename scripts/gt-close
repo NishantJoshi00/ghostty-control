@@ -1,15 +1,39 @@
 #!/bin/zsh
-# gt-close <id> [--force]
+# gt-close <id> [--force] [--json]
 # Closes the terminal with the given id without tripping Ghostty's
 # "process is running" confirmation dialog (which stalls autonomous flows).
-# Default: interrupt the foreground process (ctrl+c), then `exit` the shell --
-# the surface closes itself, no dialog. If the terminal survives (e.g. a TUI
+# Default: interrupt the foreground process (ctrl+c), then send EOF (ctrl+d) to
+# the shell -- the surface closes itself, no dialog. If the terminal survives (e.g. a TUI
 # that ignores ctrl+c), falls back to AppleScript close and auto-confirms the
 # sheet if one appears. --force skips the graceful phase.
 set -euo pipefail
 
-TID="${1:-}"; FORCE="${2:-}"
-[[ -n "$TID" ]] || { echo "usage: gt-close <id> [--force]" >&2; exit 2; }
+TID="" FORCE=0 JSON=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force) FORCE=1; shift ;;
+    --json) JSON=1; shift ;;
+    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    *) if [[ -z "$TID" ]]; then TID="$1"; else echo "gt-close: unknown arg '$1'" >&2; exit 2; fi; shift ;;
+  esac
+done
+[[ -n "$TID" ]] || { echo "usage: gt-close <id> [--force] [--json]" >&2; exit 2; }
+
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+emit_json() {
+  local close_status="$1" method="$2" closed="$3"
+  printf '{"backend":"applescript","id":"%s","status":"%s","method":"%s","closed":%s}\n' \
+    "$(json_escape "$TID")" "$(json_escape "$close_status")" "$(json_escape "$method")" "$closed"
+}
 
 exists() {
   osascript - "$TID" <<'EOF' 2>/dev/null
@@ -27,29 +51,43 @@ EOF
 }
 
 if [[ "$(exists)" == "no" ]]; then
-  echo "gt-close: no terminal with id $TID (already closed?)"
+  if [[ "$JSON" == "1" ]]; then
+    emit_json "already_closed" "none" true
+  else
+    echo "gt-close: no terminal with id $TID (already closed?)"
+  fi
   exit 0
 fi
 
-if [[ "$FORCE" != "--force" ]]; then
-  # graceful: interrupt foreground process, then exit the shell
+graceful_once() {
   osascript - "$TID" <<'EOF' >/dev/null 2>&1
 on run argv
     tell application "Ghostty"
         set t to terminal id (item 1 of argv)
         send key "c" modifiers "control" to t
-        delay 0.3
-        input text "exit" to t
-        -- input text is paste-style and async; send Enter only after the paste
-        -- terminator has landed or zsh can see a stray "~" as part of the word.
-        delay 0.8
-        send key "enter" to t
+        delay 0.35
+        send key "d" modifiers "control" to t
     end tell
 end run
 EOF
-  for i in {1..10}; do
-    [[ "$(exists)" == "no" ]] && { echo "closed $TID (graceful)"; exit 0; }
-    sleep 0.3
+}
+
+if [[ "$FORCE" == "0" ]]; then
+  # graceful: interrupt foreground process, then EOF the shell. This avoids
+  # paste timing failures such as "exit~" or dropped leading characters.
+  for attempt in 1 2; do
+    graceful_once || true
+    for i in {1..10}; do
+      if [[ "$(exists)" == "no" ]]; then
+        if [[ "$JSON" == "1" ]]; then
+          emit_json "closed" "graceful" true
+        else
+          echo "closed $TID (graceful)"
+        fi
+        exit 0
+      fi
+      sleep 0.25
+    done
   done
 fi
 
@@ -72,8 +110,13 @@ end run
 EOF
 sleep 0.3
 if [[ "$(exists)" == "no" ]]; then
-  echo "closed $TID (forced)"
+  if [[ "$JSON" == "1" ]]; then
+    emit_json "closed" "forced" true
+  else
+    echo "closed $TID (forced)"
+  fi
 else
+  [[ "$JSON" == "1" ]] && emit_json "failed" "forced" false
   echo "gt-close: terminal $TID still open -- a dialog may need manual attention" >&2
   exit 1
 fi
