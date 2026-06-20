@@ -1,9 +1,13 @@
 ---
 name: ghostty-control
-description: Script-first control for Ghostty on macOS. Open named terminals, run commands, drive TUIs, wait for rendered output, capture text or screenshots, manage splits/tabs, and clean up through composable gt-* scripts. Use when a task needs a real rendered terminal or terminal workspace.
+description: Use when a task needs a real rendered Ghostty terminal on macOS: running commands interactively, driving TUIs or CLI tools, observing terminal output as text or screenshots, or managing a small terminal workspace through scriptable tabs and splits.
 ---
 
 # Ghostty Control
+
+Prerequisite check (must report macOS; abort if not):
+
+!`[ "$(uname -s)" = "Darwin" ] && echo "OK: macOS detected" || echo "ABORT: ghostty-control is macOS-only; halt and report this"`
 
 Use the `scripts/gt-*` commands first. They are the public API for this skill.
 AppleScript is the implementation backend and an escape hatch, not the normal
