@@ -1,10 +1,14 @@
 #!/bin/zsh
-# gt-open [sibling_id] [--cwd dir] [--cmd "command"] [--name title] [--ready-delay seconds] [--json]
+# gt-open [sibling_id] [--cwd dir] [--cmd "command"] [--name title] [--ready-delay max_seconds] [--json]
 # Opens a named tab in the window containing sibling_id (front window if omitted).
 # Prints the new terminal's id on stdout — keep it; it is the handle for every other gt-* script.
+# Readiness is polled, not slept: returns as soon as the new surface paints a
+# non-blank, settled frame (shell prompt or TUI first paint), up to
+# --ready-delay seconds (default 5). --no-wait skips the readiness poll.
 set -euo pipefail
 
-SIBLING="" CWD="" CMD="" NAME="" READY_DELAY=1.5 JSON=0
+HERE="${0:A:h}"
+SIBLING="" CWD="" CMD="" NAME="" READY_DELAY=5 JSON=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cwd)  CWD="$2"; shift 2 ;;
@@ -13,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     --ready-delay) READY_DELAY="$2"; shift 2 ;;
     --no-wait) READY_DELAY=0; shift ;;
     --json) JSON=1; shift ;;
-    -h|--help) sed -n '2,5p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
     *) SIBLING="$1"; shift ;;
   esac
 done
@@ -36,7 +40,6 @@ on run argv
     set cwd to item 2 of argv
     set cmd to item 3 of argv
     set tabName to item 4 of argv
-    set readyDelay to item 5 of argv as real
     tell application "Ghostty"
         -- pick target window: the one containing the sibling terminal, else front
         set w to front window
@@ -54,7 +57,7 @@ on run argv
         if cwd is not "" then set initial working directory of conf to cwd
         if cmd is not "" then set initial input of conf to (cmd & linefeed)
         set tb to new tab in w with configuration conf
-        delay readyDelay
+        delay 0.35 -- let the surface resolve; shell readiness is polled by the caller
         set t to focused terminal of tb
         perform action ("set_tab_title:" & tabName) on t
         return id of t
@@ -62,6 +65,21 @@ on run argv
 end run
 EOF
 )
+# readiness poll: first non-blank frame that holds steady two polls in a row.
+# Plain shells settle as soon as the prompt paints (usually well under 1.5s);
+# animated TUIs never settle and fall through at the cap, which only means the
+# caller should gt-wait --for their first known pattern anyway.
+if [[ "$READY_DELAY" != "0" ]]; then
+  typeset -F SECONDS
+  START=$SECONDS PREV=""
+  while (( SECONDS - START < READY_DELAY )); do
+    FRAME=$("$HERE/gt-screen" "$ID" 2>/dev/null || true)
+    if [[ -n "${FRAME//[[:space:]]/}" && "$FRAME" == "$PREV" ]]; then break; fi
+    PREV="$FRAME"
+    sleep 0.15
+  done
+fi
+
 if [[ "$JSON" == "1" ]]; then
   CMD_PRESENT=false; [[ -n "$CMD" ]] && CMD_PRESENT=true
   printf '{"backend":"applescript","id":"%s","name":"%s","cwd":"%s","command_present":%s,"ready_delay":%s}\n' \
