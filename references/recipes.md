@@ -22,8 +22,7 @@ fi
 id=$(scripts/gt-open --cwd "$PWD" --cmd "lazygit" --name "gt: lazygit")
 scripts/gt-wait "$id" --for "Status" --timeout 20
 scripts/gt-send "$id" --key arrowDown --key enter
-scripts/gt-wait "$id"
-scripts/gt-screen "$id"
+scripts/gt-wait "$id" --screen        # settle, then print the frame
 scripts/gt-send "$id" --key q
 scripts/gt-close "$id"
 ```

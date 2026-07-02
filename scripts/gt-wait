@@ -1,19 +1,22 @@
 #!/bin/zsh
-# gt-wait <id> [--for PATTERN] [--timeout SECONDS] [--interval SECONDS] [--json]
+# gt-wait <id> [--for PATTERN] [--timeout SECONDS] [--interval SECONDS] [--screen] [--json]
 # Pattern mode (--for): block until PATTERN (grep -E) appears on the screen. Exit 1 on timeout.
 # Settle mode (no --for): block until two consecutive frames are identical (repaint finished).
+# --screen: print the final frame on success — saves a follow-up gt-screen call.
+# On timeout the last captured frame is dumped to stderr for debugging.
 # Note: spinners/progress bars never settle — use --for on animated screens.
 set -euo pipefail
 
 HERE="${0:A:h}"
-TID="" PATTERN="" TIMEOUT=15 INTERVAL=0.15 JSON=0
+TID="" PATTERN="" TIMEOUT=15 INTERVAL=0.15 JSON=0 SCREEN_OUT=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --for)      PATTERN="$2"; shift 2 ;;
     --timeout)  TIMEOUT="$2"; shift 2 ;;
     --interval) INTERVAL="$2"; shift 2 ;;
+    --screen)   SCREEN_OUT=1; shift ;;
     --json)     JSON=1; shift ;;
-    -h|--help)  sed -n '2,5p' "$0"; exit 0 ;;
+    -h|--help)  sed -n '2,7p' "$0"; exit 0 ;;
     *) TID="$1"; shift ;;
   esac
 done
@@ -39,17 +42,19 @@ emit_json() {
 
 START=$(date +%s)
 DEADLINE=$(( $(date +%s) + TIMEOUT ))
-PREV=""
+PREV="" FRAME=""
 while (( $(date +%s) < DEADLINE )); do
   FRAME=$("$HERE/gt-screen" "$TID" 2>/dev/null || true)
   if [[ -n "$PATTERN" ]]; then
     if printf '%s' "$FRAME" | grep -qE "$PATTERN"; then
       [[ "$JSON" == "1" ]] && emit_json true true false false "$(( $(date +%s) - START ))"
+      [[ "$SCREEN_OUT" == "1" && "$JSON" != "1" ]] && printf '%s\n' "$FRAME"
       exit 0
     fi
   else
     if [[ -n "$FRAME" && "$FRAME" == "$PREV" ]]; then
       [[ "$JSON" == "1" ]] && emit_json true false true false "$(( $(date +%s) - START ))"
+      [[ "$SCREEN_OUT" == "1" && "$JSON" != "1" ]] && printf '%s\n' "$FRAME"
       exit 0
     fi
     PREV="$FRAME"
@@ -58,4 +63,7 @@ while (( $(date +%s) < DEADLINE )); do
 done
 [[ "$JSON" == "1" ]] && emit_json false false false true "$(( $(date +%s) - START ))"
 echo "gt-wait: timeout after ${TIMEOUT}s${PATTERN:+ waiting for /$PATTERN/}" >&2
+if [[ -n "$PREV$FRAME" ]]; then
+  { echo "gt-wait: last frame:"; printf '%s\n' "${FRAME:-$PREV}"; } >&2
+fi
 exit 1

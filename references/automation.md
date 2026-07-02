@@ -121,7 +121,7 @@ Packaged in [`../scripts/`](../scripts/) so a session is one-liners instead of h
 | `gt-status <id> [--json]` | discover | validate one terminal id |
 | `gt-run <id> "cmd" [--timeout N] [--json]` | act+wait | run command, block until done (sentinel), print screen, exit with cmd's code |
 | `gt-send <id> --key SPEC / --text STR / --stdin / --enter` | act | keystrokes and text, in argument order |
-| `gt-wait <id> [--for pat] [--timeout N] [--json]` | wait | settle loop, or block until pattern renders |
+| `gt-wait <id> [--for pat] [--timeout N] [--screen] [--json]` | wait | settle loop, or block until pattern renders; `--screen` prints the final frame (wait+perceive in one call); timeout dumps the last frame to stderr |
 | `gt-screen <id> [--scrollback] [--json]` | perceive | screen as text on stdout |
 | `gt-shot [out.png]` | perceive | front Ghostty window as PNG, prints path |
 | `gt-focus <id>` | manage | focus a terminal by id |
@@ -146,8 +146,7 @@ TUI driving — send/wait/screen:
 id=$(gt-open --cwd ~/repo --cmd lazygit)
 gt-wait "$id" --for "Status"
 gt-send "$id" --key down --key enter
-gt-wait "$id"
-gt-screen "$id"
+gt-wait "$id" --screen
 gt-send "$id" --key q && gt-close "$id"
 ```
 

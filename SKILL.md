@@ -43,7 +43,8 @@ probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 1. **Probe** with `gt-probe` before relying on Ghostty automation.
 2. **Open or attach** with `gt-open`, `gt-list`, and `gt-status`.
 3. **Act** with `gt-run`, `gt-send`, `gt-mouse`, `gt-action`, or `gt-split`.
-4. **Wait** with `gt-wait --for` or settle mode.
+4. **Wait** with `gt-wait --for` or settle mode. Add `--screen` to print the
+   matched frame — wait and perceive in one call.
 5. **Perceive** with `gt-screen`; use `gt-shot` when text is ambiguous.
 6. **Clean up** with `gt-close` when the terminal was created for the task.
 
@@ -57,7 +58,7 @@ probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 | Validate one terminal | `scripts/gt-status <id> [--json]` |
 | Run a shell command and wait | `scripts/gt-run <id> "command" [--timeout N] [--json]` |
 | Send keys/text/raw input | `scripts/gt-send <id> --key SPEC --text STR --raw STR --enter` |
-| Wait for text or settle | `scripts/gt-wait <id> [--for PATTERN] [--timeout N] [--json]` |
+| Wait for text or settle | `scripts/gt-wait <id> [--for PATTERN] [--timeout N] [--screen] [--json]` |
 | Read rendered text | `scripts/gt-screen <id> [--scrollback] [--json]` |
 | Capture an image | `scripts/gt-shot [id] [out.png]` |
 | Mouse input | `scripts/gt-mouse <id> click/move/scroll ...` |
@@ -100,8 +101,7 @@ Drive a TUI:
 id=$(scripts/gt-open --cwd "$PWD" --cmd lazygit --name "gt: lazygit")
 scripts/gt-wait "$id" --for "Status"
 scripts/gt-send "$id" --key arrowDown --key enter
-scripts/gt-wait "$id"
-scripts/gt-screen "$id"
+scripts/gt-wait "$id" --screen        # settle, then print the frame
 scripts/gt-send "$id" --key q
 scripts/gt-close "$id"
 ```
