@@ -38,8 +38,10 @@ emit_json() {
 }
 
 NONCE="$$_$RANDOM"
-# typed text contains GT_EN''D_<nonce>; rendered output contains GT_END_<nonce>
-if ! "$HERE/gt-send" "$TID" --text "$CMD; printf '\\nGT_EN''D_${NONCE}:%s\\n' \$?" --enter; then
+# typed text contains GT_EN''D_<nonce>; rendered output contains GT_END_<nonce>.
+# The sentinel goes on its OWN pasted line, not ';'-joined: a command ending in
+# a comment (cmd # note) would swallow a same-line sentinel and hang to timeout.
+if ! "$HERE/gt-send" "$TID" --text "$CMD"$'\n'"printf '\\nGT_EN''D_${NONCE}:%s\\n' \$?"$'\n'; then
   [[ "$JSON" == "1" ]] && emit_json false false false null "" "send_failed"
   echo "gt-run: failed to send command" >&2
   exit 1
