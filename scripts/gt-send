@@ -27,7 +27,25 @@ set -euo pipefail
 TID="${1:-}"; shift || true
 [[ -n "$TID" ]] || { echo "usage: gt-send <id> [--key SPEC|--text STR|--enter]..." >&2; exit 2; }
 
-send_key() {  # $1 = spec like "c,control,shift"
+# A surface can accept screen capture before it accepts input; right after
+# gt-open Ghostty may transiently raise "Terminal surface model is not
+# available" (-10000). Nothing is delivered when that fires, so retrying is
+# safe. Any other error fails immediately.
+osa_retry() {
+  local out rc attempt
+  for attempt in 1 2 3; do
+    out=$("$@" 2>&1) && return 0
+    rc=$?
+    if [[ "$out" != *"not available"* && "$out" != *"-10000"* ]]; then
+      print -r -- "$out" >&2; return $rc
+    fi
+    sleep 0.4
+  done
+  print -r -- "$out" >&2; return $rc
+}
+
+send_key() { osa_retry send_key_once "$@"; }
+send_key_once() {  # $1 = spec like "c,control,shift"
   local key="${1%%,*}" mods=""
   [[ "$1" == *,* ]] && mods="${1#*,}"
   osascript - "$TID" "$key" "$mods" <<'EOF' >/dev/null
@@ -44,7 +62,8 @@ end run
 EOF
 }
 
-send_text() {  # $1 = text (raw bracketed paste, no key synthesis)
+send_text() { osa_retry send_text_once "$@"; }
+send_text_once() {  # $1 = text (raw bracketed paste, no key synthesis)
   osascript - "$TID" "$1" <<'EOF' >/dev/null
 on run argv
     tell application "Ghostty"
@@ -65,7 +84,8 @@ send_text_submit() {  # $1 = text; paste it, but a trailing newline becomes a re
   fi
 }
 
-send_raw() {  # $1 = Zig-syntax string for the text: action
+send_raw() { osa_retry send_raw_once "$@"; }
+send_raw_once() {  # $1 = Zig-syntax string for the text: action
   osascript - "$TID" "text:$1" <<'EOF' >/dev/null
 on run argv
     tell application "Ghostty"
