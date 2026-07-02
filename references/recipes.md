@@ -72,6 +72,17 @@ fi
 scripts/gt-close "$id"
 ```
 
+## Recover A Lost Id
+
+Ids survive in Ghostty even when your shell variable didn't. Match the name
+you set at open time, then continue where you left off:
+
+```bash
+id=$(scripts/gt-list | awk '/gt: task/{print $1; exit}')
+scripts/gt-screen "$id"      # reorient from the rendered state
+scripts/gt-close "$id"       # and never skip cleanup
+```
+
 ## Multi-Agent Workspace
 
 ```bash
