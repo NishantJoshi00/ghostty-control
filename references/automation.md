@@ -119,7 +119,7 @@ Packaged in [`../scripts/`](../scripts/) so a session is one-liners instead of h
 | `gt-open [sibling_id] [--cwd d] [--cmd c] [--name n] [--json]` | open | named tab (in sibling's window if id given), prints terminal id |
 | `gt-list [--json]` | discover | list visible Ghostty terminals |
 | `gt-status <id> [--json]` | discover | validate one terminal id |
-| `gt-run <id> "cmd" [--timeout N] [--json]` | act+wait | run command, block until done (sentinel), print screen, exit with cmd's code |
+| `gt-run <id> "cmd" [--timeout N] [--json]` | act+wait | run command, block until done (sentinel), print screen, exit with cmd's code. Commands that exit ONLY — launch TUIs/pagers/REPLs via `gt-open --cmd` instead or gt-run stalls until timeout |
 | `gt-send <id> --key SPEC / --text STR / --stdin / --enter` | act | keystrokes and text, in argument order |
 | `gt-wait <id> [--for pat] [--timeout N] [--screen] [--json]` | wait | settle loop, or block until pattern renders; `--screen` prints the final frame (wait+perceive in one call); timeout dumps the last frame to stderr |
 | `gt-screen <id> [--scrollback] [--json]` | perceive | screen as text on stdout |

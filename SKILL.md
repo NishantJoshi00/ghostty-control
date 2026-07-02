@@ -59,7 +59,7 @@ probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 | Open a named tab | `scripts/gt-open [sibling_id] [--cwd DIR] [--cmd CMD] [--name NAME] [--json]` |
 | Discover terminals | `scripts/gt-list [--json]` |
 | Validate one terminal | `scripts/gt-status <id> [--json]` |
-| Run a shell command and wait | `scripts/gt-run <id> "command" [--timeout N] [--json]` |
+| Run a command that exits, wait for it | `scripts/gt-run <id> "command" [--timeout N] [--json]` |
 | Send keys/text/raw input | `scripts/gt-send <id> --key SPEC --text STR --raw STR --enter` |
 | Wait for text or settle | `scripts/gt-wait <id> [--for PATTERN] [--timeout N] [--screen] [--json]` |
 | Read rendered text | `scripts/gt-screen <id> [--scrollback] [--json]` |
@@ -70,6 +70,11 @@ probe -> open/attach -> act -> wait -> perceive -> decide -> clean up
 | Safe Ghostty actions | `scripts/gt-action <id> <verb> [args...]` |
 | Copy/paste selection | `scripts/gt-copy <id>`, `scripts/gt-paste <id> [text]` |
 | Close task terminal | `scripts/gt-close <id> [--force] [--json]` |
+
+`gt-run` is only for commands that exit. Start TUIs, pagers, and REPLs with
+`gt-open --cmd CMD` (or `gt-split --cmd`), then act with `gt-send` and perceive
+with `gt-wait --screen` — `gt-run`'s completion sentinel never fires for an
+interactive program, so it just stalls until its timeout.
 
 ## Rules
 
