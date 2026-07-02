@@ -16,13 +16,16 @@ check instead of guessing.
 
 ## Fast Start
 
-```bash
-scripts/gt-probe
+Bind the scripts directory once — every `gt-*` script works from any cwd, so
+never `cd` into the skill between calls, and chain independent steps in one
+shell invocation once you hold the id:
 
-id=$(scripts/gt-open --cwd "$PWD" --name "gt: task")
-scripts/gt-run "$id" "npm test"
-scripts/gt-screen "$id"
-scripts/gt-close "$id"
+```bash
+GT="$HOME/.claude/skills/ghostty-control/scripts"  # wherever this skill lives
+"$GT/gt-probe"
+
+id=$("$GT/gt-open" --cwd "$PWD" --name "gt: task")
+"$GT/gt-run" "$id" "npm test" && "$GT/gt-close" "$id"
 ```
 
 For machine-readable discovery:
