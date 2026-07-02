@@ -158,6 +158,17 @@ Hard-won caveats from live exercises driving real programs through this kit:
 - **Infer state from the screen, not from your last action.** Every wrong turn in the exercise came from assuming a keystroke landed. Capture (`gt-screen`/`gt-shot <id>`) after each state-changing step before sending the next.
 - **On a prompt bar, a `\n` is not an Enter.** Multiline composers (Claude Code, REPLs) take a pasted newline as a literal newline, not a submit. Don't assume `\n` will behave like Enter — submit with a real Enter key (`send key "enter"`).
 
+Program-specific setup that prevents automation flakes — launch interactive
+tools with these when driving them:
+
+| Program | Launch as | Why |
+|---------|-----------|-----|
+| python | `PYTHON_BASIC_REPL=1 python3` | the 3.13+ fancy REPL rewrites pasted input and breaks paste-driven automation |
+| git | `git --no-pager …` or `GIT_PAGER=cat git …` | a pager swallows output and blocks the sentinel |
+| any command needing only output | append `\| cat` | disables paging entirely; prefer `gt-run` on the piped form over driving `less` |
+| gdb/lldb | `set pagination off` / `settings set term-width 0` | `--More--` prompts never settle and eat keys |
+| nvim | `nvim -n --clean` | stale swap-file dialogs steal the first keystrokes; also see the `--raw` caveat above |
+
 Input semantics learned the hard way:
 
 - **Key names are lowercase.** `--key G` errors; shifted printable chars go via `--text "G"`. Ctrl chords (`--key u,control`) work and are verified functionally.

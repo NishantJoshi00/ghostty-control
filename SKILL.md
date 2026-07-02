@@ -124,6 +124,10 @@ scripts/gt-send "$id" --text $'claude\n'
 ```
 
 See more task patterns in [references/recipes.md](references/recipes.md).
+Before driving python/git/gdb/nvim interactively, check the program-specific
+launch flags table in [references/automation.md](references/automation.md) —
+fancy REPLs and pagers break paste-driven automation in ways that look like
+your keystrokes vanished.
 
 ## References
 
